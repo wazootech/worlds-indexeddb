@@ -1,0 +1,49 @@
+{
+  "name": "@worlds/indexeddb",
+  "description": "IndexedDB durable backend for the Worlds client — RDF/JS quad primitive packaged with the worlds impl.",
+  "version": "0.1.0",
+  "license": "WTFPL",
+  "nodeModulesDir": "auto",
+  "minimumDependencyAge": 0,
+  "exports": {
+    ".": "./src/mod.ts",
+    "./rdfjs-store": "./src/indexeddb/rdfjs-store/mod.ts",
+    "./sdk": "./src/indexeddb/sdk/mod.ts"
+  },
+  "imports": {
+    "@/": "./src/",
+    "@rdfjs/types": "npm:@rdfjs/types@^2.0.1",
+    "@std/assert": "jsr:@std/assert@^1.0.19",
+    "@wazoo/sparql-engine": "jsr:@wazoo/sparql-engine@^0.4.0",
+    "@wazoo/sparql-engine/term": "jsr:@wazoo/sparql-engine@^0.4.0/term",
+    "@worlds/sdk": "jsr:@worlds/sdk@^0.2.0"
+  },
+  "publish": {
+    "include": [
+      "src/",
+      "README.md",
+      "LICENSE"
+    ],
+    "exclude": [
+      "src/**/*.test.ts",
+      "test/"
+    ]
+  },
+  "tasks": {
+    "fmt": "deno fmt",
+    "fmt:check": "deno fmt --check",
+    "lint": "deno lint",
+    "check": "deno check",
+    "test": "deno test --allow-all",
+    "publish:dry": "deno publish --dry-run --allow-dirty",
+    "ci": {
+      "description": "Formats, lints, checks, and tests the code",
+      "dependencies": [
+        "fmt:check",
+        "lint",
+        "check",
+        "test"
+      ]
+    }
+  }
+}

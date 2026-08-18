@@ -1,0 +1,76 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@std/assert@^1.0.19": "1.0.19",
+    "jsr:@std/encoding@^1.0.10": "1.0.11",
+    "jsr:@std/internal@^1.0.12": "1.0.14",
+    "jsr:@wazoo/sparql-engine@0.4": "0.4.1",
+    "jsr:@wazoo/sparql-engine@~0.4.1": "0.4.1",
+    "jsr:@worlds/sdk@0.2": "0.2.1",
+    "npm:@rdfjs/types@^2.0.1": "2.0.1",
+    "npm:rdf-canonize@5": "5.0.0"
+  },
+  "jsr": {
+    "@std/assert@1.0.19": {
+      "integrity": "eaada96ee120cb980bc47e040f82814d786fe8162ecc53c91d8df60b8755991e",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
+    "@std/encoding@1.0.11": {
+      "integrity": "e7cef2f0b3153bccc17431e7c864a1de03a4b6d9647389c43e08aaa775d37385"
+    },
+    "@std/internal@1.0.14": {
+      "integrity": "291516b3d4c35024d6ffbc0a9df5bf4c64116e05b50012cf846710152d2ffdf7"
+    },
+    "@wazoo/sparql-engine@0.4.1": {
+      "integrity": "6881bda5e45aaf8bac2cd87f8b43db5db51d307fccbffc1cd4edaa46454f9bd7",
+      "dependencies": [
+        "npm:@rdfjs/types"
+      ]
+    },
+    "@worlds/sdk@0.2.1": {
+      "integrity": "ef6d1429f3adf44c529b8921e86739d2f2e30866488e18940d00e67b655863de",
+      "dependencies": [
+        "jsr:@std/encoding",
+        "jsr:@wazoo/sparql-engine@~0.4.1",
+        "npm:@rdfjs/types",
+        "npm:rdf-canonize"
+      ]
+    }
+  },
+  "npm": {
+    "@rdfjs/types@2.0.1": {
+      "integrity": "sha512-uyAzpugX7KekAXAHq26m3JlUIZJOC0uSBhpnefGV5i15bevDyyejoB7I+9MKeUrzXD8OOUI3+4FeV1wwQr5ihA==",
+      "dependencies": [
+        "@types/node"
+      ]
+    },
+    "@types/node@26.2.0": {
+      "integrity": "sha512-5IviulTZeRNp2vAJ514cc/HUlY5nZ9fCbq9DMyC52BrhFZACo3nI0R7qBxhQmo/d27NFe96ur/b7Wwxklda+kg==",
+      "dependencies": [
+        "undici-types"
+      ]
+    },
+    "rdf-canonize@5.0.0": {
+      "integrity": "sha512-g8OUrgMXAR9ys/ZuJVfBr05sPPoMA7nHIVs8VEvg9QwM5W4GR2qSFEEHjsyHF1eWlBaf8Ev40WNjQFQ+nJTO3w==",
+      "dependencies": [
+        "setimmediate"
+      ]
+    },
+    "setimmediate@1.0.5": {
+      "integrity": "sha512-MATJdZp8sLqDl/68LfQmbP8zKPLQNV6BIZoIgrscFDQ+RsvK/BxeDQOgyxKKoh0y/8h3BqVFnCqQ/gd+reiIXA=="
+    },
+    "undici-types@8.3.0": {
+      "integrity": "sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ=="
+    }
+  },
+  "workspace": {
+    "dependencies": [
+      "jsr:@std/assert@^1.0.19",
+      "jsr:@wazoo/sparql-engine@0.4",
+      "jsr:@worlds/sdk@0.2",
+      "npm:@rdfjs/types@^2.0.1"
+    ]
+  }
+}
