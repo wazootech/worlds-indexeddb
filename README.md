@@ -9,14 +9,13 @@
   <a href="https://github.com/wazootech/worlds-indexeddb"><img src="https://img.shields.io/badge/GitHub-black?logo=github" alt="GitHub" /></a>
 </p>
 
-**Status: parity-green.** `IndexedDbStore` is a real RDF/JS store over
-IndexedDB (cursor-streamed `match()`, atomic transactions) and
-`createIndexeddbSdk` wires the full Worlds SDK facade. The phase-4 parity
-suite passes the shared corpus against the in-memory reference
-(`@worlds/sdk/memory`). The storage layout and match() access-path strategy
-are recorded on
-[sparql-engine#163](https://github.com/wazootech/sparql-engine/issues/163)
-(map #162); the corpus/parity definition lives on
+**Status: parity-green.** `IndexedDbStore` is a real RDF/JS store over IndexedDB
+(cursor-streamed `match()`, atomic transactions) and `createIndexeddbSdk` wires
+the full Worlds SDK facade. The phase-4 parity suite passes the shared corpus
+against the in-memory reference (`@worlds/sdk/memory`). The storage layout and
+match() access-path strategy are recorded on
+[sparql-engine#163](https://github.com/wazootech/sparql-engine/issues/163) (map
+#162); the corpus/parity definition lives on
 [workspace#72](https://github.com/wazootech/workspace/issues/72).
 
 IndexedDB is the browser's durable, local-first backend for the
@@ -66,21 +65,19 @@ deno task ci
 
 - **Zero runtime dependencies** — the IndexedDB API is a browser builtin; the
   only npm/JSR imports are type-only (`@rdfjs/types`) and dev/test-only
-  (`fake-indexeddb` powers the test substrate — Deno has no native
-  IndexedDB).
-- **Storage layout (sparql-engine#163)** — one object store keyed by a
-  composite quad key (the four position term keys joined by NUL), with
-  per-position indexes; quads differing only by graph never collide.
-- **match() access-path selection** — each bound position index is counted
-  and the smallest is scanned, with the remaining positions filtered by
+  (`fake-indexeddb` powers the test substrate — Deno has no native IndexedDB).
+- **Storage layout (sparql-engine#163)** — one object store keyed by a composite
+  quad key (the four position term keys joined by NUL), with per-position
+  indexes; quads differing only by graph never collide.
+- **match() access-path selection** — each bound position index is counted and
+  the smallest is scanned, with the remaining positions filtered by
   `sameRdfTerm` (System R selection, the engine's `probeQuadIndex` idea).
-- **True atomicity for free** — buffered patches (SPARQL updates,
-  SDK imports) apply inside a single IndexedDB readwrite transaction:
-  crash-safe and durable by construction; `applyPatch` clears first for
-  replace-mode imports.
+- **True atomicity for free** — buffered patches (SPARQL updates, SDK imports)
+  apply inside a single IndexedDB readwrite transaction: crash-safe and durable
+  by construction; `applyPatch` clears first for replace-mode imports.
 - **Term identity** — row keys use the engine's `termKey` scheme, vendored
   in-repo and pinned by `term-key-parity.test.ts`, like `@worlds/sqlite`.
-- **Async surface** — IndexedDB is inherently asynchronous: `match()`
-  returns an async cursor-backed RDF/JS stream (the engine and SDK already
-  read async streams), `countQuads()`/`getQuads()` return promises, and
-  `size` is a live count refreshed after each write transaction.
+- **Async surface** — IndexedDB is inherently asynchronous: `match()` returns an
+  async cursor-backed RDF/JS stream (the engine and SDK already read async
+  streams), `countQuads()`/`getQuads()` return promises, and `size` is a live
+  count refreshed after each write transaction.
