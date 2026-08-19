@@ -15,6 +15,7 @@
   "exports": {
     ".": "./src/mod.ts",
     "./rdfjs-store": "./src/indexeddb/rdfjs-store/mod.ts",
+    "./search-index": "./src/indexeddb/search-index/mod.ts",
     "./sdk": "./src/indexeddb/sdk/mod.ts"
   },
   "imports": {
@@ -27,6 +28,9 @@
     "@worlds/sdk/rdfjs": "jsr:@worlds/sdk@^0.4.0/rdfjs",
     "@worlds/sdk/testing": "jsr:@worlds/sdk@^0.4.0/testing",
     "@worlds/sdk/memory": "jsr:@worlds/sdk@^0.4.0/memory",
+    "@worlds/sdk/search-index": "jsr:@worlds/sdk@^0.4.0/search-index",
+    "@worlds/sdk/search-index/quad-chunker": "jsr:@worlds/sdk@^0.4.0/search-index/quad-chunker",
+    "@worlds/sdk/search-index/embedding-service": "jsr:@worlds/sdk@^0.4.0/search-index/embedding-service",
     "fake-indexeddb": "npm:fake-indexeddb@^6.0.0",
     "fake-indexeddb/auto": "npm:fake-indexeddb@^6.0.0/auto"
   },
