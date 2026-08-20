@@ -57,22 +57,21 @@ const result = await engine.execute({
 ```typescript
 import { createIndexeddbSdk } from "@worlds/indexeddb/sdk";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
-import type { EmbeddingService } from "@worlds/sdk/search-index/embedding-service";
+import { UniversalSentenceEncoderEmbeddingService } from "@worlds/sdk/tfjs-universal-sentence-encoder";
 
-// Replace with your own embedding service (e.g. OpenAI, Gemini, TF.js USE).
-const embeddingService: EmbeddingService = {
-  embed: (texts) =>
-    Promise.resolve(texts.map(() => new Float32Array(1536).fill(0))),
-};
+// USE lite runs entirely in-browser via TF.js — no API key, no server.
+// The model (~6 MB) downloads from TF Hub on first use and is cached.
+const embeddingService = new UniversalSentenceEncoderEmbeddingService();
 
 // textSplitter enables TF-IDF keyword search over chunked literals.
-// embeddingService adds cosine vector similarity — both together give
-// hybrid search fused with Reciprocal Rank Fusion (k=60).
+// embeddingService adds 512-d cosine vector similarity — both together
+// give hybrid search fused with Reciprocal Rank Fusion (k=60).
 // Without either, falls back to scan-based keyword search.
 const sdk = await createIndexeddbSdk({
   dbName: "wazoo-playground",
   textSplitter: new RecursiveCharacterTextSplitter({ chunkSize: 1000 }),
   embeddingService,
+  vectorDimensions: 512,
 });
 
 await sdk.import({
@@ -118,8 +117,10 @@ deno task ci
 - **Hybrid search (phase 2)** — `textSplitter` enables TF-IDF keyword search
   over chunked literals; `embeddingService` adds cosine vector similarity;
   both together give hybrid search fused with Reciprocal Rank Fusion
-  (k=60, matching the libsql reference). With only `textSplitter`, search is
-  keyword-only. With neither, falls back to the scan-based `RdfjsSearchIndex`.
+  (k=60, matching the libsql reference). The bundled
+  `UniversalSentenceEncoderEmbeddingService` (512-d) runs entirely in-browser
+  via TF.js with no API key. With only `textSplitter`, search is keyword-only.
+  With neither, falls back to the scan-based `RdfjsSearchIndex`.
 - **Async surface** — IndexedDB is inherently asynchronous: `match()` returns an
   async cursor-backed RDF/JS stream (the engine and SDK already read async
   streams), `countQuads()`/`getQuads()` return promises, and `size` is a live
