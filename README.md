@@ -9,13 +9,14 @@
   <a href="https://github.com/wazootech/worlds-indexeddb"><img src="https://img.shields.io/badge/GitHub-black?logo=github" alt="GitHub" /></a>
 </p>
 
-**Status: parity-green, hybrid search.** `IndexedDbStore` is a real RDF/JS store over IndexedDB
-(cursor-streamed `match()`, atomic transactions) and `createIndexeddbSdk` wires
-the full Worlds SDK facade. When a `textSplitter` is provided, the SDK uses
-`IndexedDbSearchIndex` for JS-side hybrid search (TF-IDF keyword scoring +
-cosine vector similarity, fused with RRF k=60). The phase-4 parity suite
-passes the shared corpus against the in-memory reference (`@worlds/sdk/memory`).
-The storage layout and match() access-path strategy are recorded on
+**Status: parity-green, hybrid search.** `IndexedDbStore` is a real RDF/JS store
+over IndexedDB (cursor-streamed `match()`, atomic transactions) and
+`createIndexeddbSdk` wires the full Worlds SDK facade. When a `textSplitter` is
+provided, the SDK uses `IndexedDbSearchIndex` for JS-side hybrid search (TF-IDF
+keyword scoring + cosine vector similarity, fused with RRF k=60). The phase-4
+parity suite passes the shared corpus against the in-memory reference
+(`@worlds/sdk/memory`). The storage layout and match() access-path strategy are
+recorded on
 [sparql-engine#163](https://github.com/wazootech/sparql-engine/issues/163) (map
 #162); the corpus/parity definition lives on
 [workspace#72](https://github.com/wazootech/workspace/issues/72).
@@ -66,7 +67,8 @@ const sdk = await createIndexeddbSdk({
 await sdk.import({
   source: {
     kind: "serialized",
-    data: `<http://example.com/alice> <http://example.com/knows> <http://example.com/bob> .`,
+    data:
+      `<http://example.com/alice> <http://example.com/knows> <http://example.com/bob> .`,
     contentType: "text/turtle",
   },
 });
