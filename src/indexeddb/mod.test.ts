@@ -1,12 +1,12 @@
 import "fake-indexeddb/auto";
 import { assertEquals } from "@std/assert";
-import { IndexedDbStore } from "./rdfjs-store/mod.ts";
+import { IndexeddbStore } from "./rdfjs-store/mod.ts";
 import { createIndexeddbSdk } from "./sdk/mod.ts";
 
 Deno.test("surface is exported and constructible", () => {
-  assertEquals(typeof IndexedDbStore, "function");
+  assertEquals(typeof IndexeddbStore, "function");
   assertEquals(typeof createIndexeddbSdk, "function");
-  const store = new IndexedDbStore({ dbName: "wazoo-playground" });
+  const store = new IndexeddbStore({ dbName: "wazoo-playground" });
   assertEquals(store.options.dbName, "wazoo-playground");
 });
 
