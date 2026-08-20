@@ -3,17 +3,19 @@
     <img src="https://wazoo.dev/assets/wazoo.svg" alt="Wazoo Worlds" width="120" />
   </a>
   <br /><br />
-  <em>IndexedDB durable backend for Worlds — RDF/JS quad store and SDK factory, browser-native.</em>
+  <em>IndexedDB durable backend for Worlds — RDF/JS quad store, hybrid search, and SDK factory, browser-native.</em>
   <br /><br />
   <a href="https://jsr.io/@worlds/indexeddb"><img src="https://jsr.io/badges/@worlds/indexeddb" alt="JSR" /></a>
   <a href="https://github.com/wazootech/worlds-indexeddb"><img src="https://img.shields.io/badge/GitHub-black?logo=github" alt="GitHub" /></a>
 </p>
 
-**Status: parity-green.** `IndexedDbStore` is a real RDF/JS store over IndexedDB
+**Status: parity-green, hybrid search.** `IndexedDbStore` is a real RDF/JS store over IndexedDB
 (cursor-streamed `match()`, atomic transactions) and `createIndexeddbSdk` wires
-the full Worlds SDK facade. The phase-4 parity suite passes the shared corpus
-against the in-memory reference (`@worlds/sdk/memory`). The storage layout and
-match() access-path strategy are recorded on
+the full Worlds SDK facade. When a `textSplitter` is provided, the SDK uses
+`IndexedDbSearchIndex` for JS-side hybrid search (TF-IDF keyword scoring +
+cosine vector similarity, fused with RRF k=60). The phase-4 parity suite
+passes the shared corpus against the in-memory reference (`@worlds/sdk/memory`).
+The storage layout and match() access-path strategy are recorded on
 [sparql-engine#163](https://github.com/wazootech/sparql-engine/issues/163) (map
 #162); the corpus/parity definition lives on
 [workspace#72](https://github.com/wazootech/workspace/issues/72).
@@ -31,6 +33,8 @@ deno add jsr:@worlds/indexeddb
 
 ## Usage
 
+### Basic: quad store + SPARQL
+
 ```typescript
 import { IndexedDbStore } from "@worlds/indexeddb/rdfjs-store";
 import { WazooSparqlEngine } from "@wazoo/sparql-engine";
@@ -46,13 +50,34 @@ const result = await engine.execute({
 });
 ```
 
-Or through the SDK factory:
+### Full client: quad store + hybrid search + SPARQL
 
 ```typescript
 import { createIndexeddbSdk } from "@worlds/indexeddb/sdk";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 
-const sdk = await createIndexeddbSdk({ dbName: "wazoo-playground" });
-await sdk.import({ format: "text/turtle", data: ttl });
+// Pass a textSplitter to enable hybrid search (TF-IDF + cosine, RRF k=60).
+// Without textSplitter, falls back to scan-based keyword search.
+const sdk = await createIndexeddbSdk({
+  dbName: "wazoo-playground",
+  textSplitter: new RecursiveCharacterTextSplitter({ chunkSize: 1000 }),
+});
+
+await sdk.import({
+  source: {
+    kind: "serialized",
+    data: `<http://example.com/alice> <http://example.com/knows> <http://example.com/bob> .`,
+    contentType: "text/turtle",
+  },
+});
+
+const { search, sparql } = await Promise.all([
+  sdk.search({ query: "alice" }),
+  sdk.sparql({
+    query:
+      `SELECT ?o WHERE { <http://example.com/alice> <http://example.com/knows> ?o }`,
+  }),
+]);
 ```
 
 ## Development
@@ -77,6 +102,11 @@ deno task ci
   by construction; `applyPatch` clears first for replace-mode imports.
 - **Term identity** — row keys use the engine's `termKey` scheme, vendored
   in-repo and pinned by `term-key-parity.test.ts`, like `@worlds/sqlite`.
+- **Hybrid search (phase 2)** — when a `textSplitter` is provided,
+  `createIndexeddbSdk` uses `IndexedDbSearchIndex` for JS-side TF-IDF keyword
+  scoring + cosine vector similarity, fused with Reciprocal Rank Fusion (k=60,
+  matching the libsql reference). Without a `textSplitter`, falls back to the
+  scan-based `RdfjsSearchIndex`.
 - **Async surface** — IndexedDB is inherently asynchronous: `match()` returns an
   async cursor-backed RDF/JS stream (the engine and SDK already read async
   streams), `countQuads()`/`getQuads()` return promises, and `size` is a live
