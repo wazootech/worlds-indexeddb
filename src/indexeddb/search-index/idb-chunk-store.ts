@@ -38,10 +38,10 @@ export interface IdbChunkStoreOptions {
 /** CHUNK_STORE_VERSION must be >= the quad store version (1) to trigger onupgradeneeded when the chunk store is added. */
 const CHUNK_STORE_VERSION = 2;
 
-/** QUADS_STORE_NAME is the name of the quad store used by IndexedDbStore. */
+/** QUADS_STORE_NAME is the name of the quad store used by IndexeddbStore. */
 const QUADS_STORE_NAME = "quads";
 
-/** QUADS_INDEX_NAMES are the positional indexes created by IndexedDbStore. */
+/** QUADS_INDEX_NAMES are the positional indexes created by IndexeddbStore. */
 const QUADS_INDEX_NAMES = ["skey", "pkey", "okey", "gkey"] as const;
 
 /** txDone resolves when an IndexedDB transaction settles. */
@@ -91,7 +91,7 @@ export class IdbChunkStore {
       request.onupgradeneeded = () => {
         const db = request.result;
         // Create the quads store if it doesn't exist yet (handles the case
-        // where the chunk store opens before IndexedDbStore).
+        // where the chunk store opens before IndexeddbStore).
         if (!db.objectStoreNames.contains(QUADS_STORE_NAME)) {
           const quadStore = db.createObjectStore(QUADS_STORE_NAME, {
             keyPath: "key",

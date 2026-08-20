@@ -1,5 +1,5 @@
-export { IndexedDbSearchIndex } from "./indexeddb-search-index.ts";
-export type { IndexedDbSearchIndexOptions } from "./indexeddb-search-index.ts";
+export { IndexeddbSearchIndex } from "./indexeddb-search-index.ts";
+export type { IndexeddbSearchIndexOptions } from "./indexeddb-search-index.ts";
 export { IdbChunkStore } from "./idb-chunk-store.ts";
 export type {
   IdbChunkStoreOptions,

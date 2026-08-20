@@ -1,5 +1,5 @@
 export {
-  IndexedDbStore,
-  type IndexedDbStoreOptions,
-  type IndexedDbTransaction,
+  IndexeddbStore,
+  type IndexeddbStoreOptions,
+  type IndexeddbTransaction,
 } from "./indexeddb-store.ts";

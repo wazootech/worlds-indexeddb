@@ -6,14 +6,14 @@
  *   deno run --allow-all examples/hello-world/main.ts
  */
 import "fake-indexeddb/auto";
-import { IndexedDbStore } from "../../src/indexeddb/rdfjs-store/mod.ts";
+import { IndexeddbStore } from "../../src/indexeddb/rdfjs-store/mod.ts";
 import { WazooSparqlEngine } from "@wazoo/sparql-engine";
 import { DataFactory } from "@wazoo/sparql-engine";
 
 const { namedNode, literal, quad } = DataFactory;
 
 // Create a fresh store backed by IndexedDB.
-const store = new IndexedDbStore({ dbName: "hello-world" });
+const store = new IndexeddbStore({ dbName: "hello-world" });
 
 // Wire a SPARQL engine over the store.
 const engine = new WazooSparqlEngine({

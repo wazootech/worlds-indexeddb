@@ -2,7 +2,7 @@
  * Phase-4 parity suite (workspace#69/#70, #72) — consumes the shared
  * @worlds/sdk/testing harness with the zero-dependency in-memory reference
  * (@worlds/sdk/memory's createMemorySdk) against the indexeddb SDK facade
- * (createIndexeddbSdk over the real IndexedDbStore).
+ * (createIndexeddbSdk over the real IndexeddbStore).
  *
  * Every candidate factory call uses a fresh, uniquely-named database so no
  * state leaks between cases or between the round-trip's two stores.

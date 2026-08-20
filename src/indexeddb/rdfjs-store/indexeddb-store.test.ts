@@ -1,18 +1,18 @@
-// IndexedDbStore unit tests over fake-indexeddb (Deno has no native
+// IndexeddbStore unit tests over fake-indexeddb (Deno has no native
 // IndexedDB; the browser global is provided by the /auto entry).
 import "fake-indexeddb/auto";
 import type * as rdfjs from "@rdfjs/types";
 import { assertEquals } from "@std/assert";
 import { DataFactory } from "@wazoo/sparql-engine";
-import { IndexedDbStore } from "@/indexeddb/rdfjs-store/indexeddb-store.ts";
+import { IndexeddbStore } from "@/indexeddb/rdfjs-store/indexeddb-store.ts";
 
 const { namedNode, literal, defaultGraph, quad, blankNode } = DataFactory;
 
 const ex = (suffix: string) => namedNode(`http://example.org/${suffix}`);
 const XSD_INTEGER = "http://www.w3.org/2001/XMLSchema#integer";
 
-function freshStore(): IndexedDbStore {
-  const store = new IndexedDbStore({ dbName: `test-${crypto.randomUUID()}` });
+function freshStore(): IndexeddbStore {
+  const store = new IndexeddbStore({ dbName: `test-${crypto.randomUUID()}` });
   return store;
 }
 
@@ -31,11 +31,11 @@ function quadOf(
 }
 
 async function collect(
-  store: IndexedDbStore,
-  s?: Parameters<IndexedDbStore["match"]>[0],
-  p?: Parameters<IndexedDbStore["match"]>[1],
-  o?: Parameters<IndexedDbStore["match"]>[2],
-  g?: Parameters<IndexedDbStore["match"]>[3],
+  store: IndexeddbStore,
+  s?: Parameters<IndexeddbStore["match"]>[0],
+  p?: Parameters<IndexeddbStore["match"]>[1],
+  o?: Parameters<IndexeddbStore["match"]>[2],
+  g?: Parameters<IndexeddbStore["match"]>[3],
 ): Promise<ReturnType<typeof quad>[]> {
   const stream = store.match(s, p, o, g);
   const quads: ReturnType<typeof quad>[] = [];
@@ -211,11 +211,11 @@ Deno.test("deleteGraph removes a named graph only", async () => {
 
 Deno.test("persistence across store instances on the same database", async () => {
   const dbName = `persist-${crypto.randomUUID()}`;
-  const first = new IndexedDbStore({ dbName });
+  const first = new IndexeddbStore({ dbName });
   first.addQuad(quadOf("alice", "knows", "bob"));
   await first.flush();
 
-  const second = new IndexedDbStore({ dbName });
+  const second = new IndexeddbStore({ dbName });
   await second.openDb();
   assertEquals((await collect(second)).length, 1);
   assertEquals(second.size, 1);

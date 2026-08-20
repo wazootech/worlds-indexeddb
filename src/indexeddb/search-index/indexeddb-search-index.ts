@@ -1,5 +1,5 @@
 /**
- * IndexedDbSearchIndex implements SearchIndexInterface over IndexedDB using
+ * IndexeddbSearchIndex implements SearchIndexInterface over IndexedDB using
  * JS-side hybrid search: TF-IDF keyword scoring + cosine vector similarity,
  * fused with Reciprocal Rank Fusion (k=60, matching the libsql reference).
  *
@@ -36,8 +36,8 @@ interface SearchRequestWithProfile extends SearchRequest {
   minScore?: number;
 }
 
-/** IndexedDbSearchIndexOptions configures the IndexedDB search engine. */
-export interface IndexedDbSearchIndexOptions {
+/** IndexeddbSearchIndexOptions configures the IndexedDB search engine. */
+export interface IndexeddbSearchIndexOptions {
   /** chunkStore is the IDB-backed chunk store. */
   chunkStore: IdbChunkStore;
 
@@ -73,14 +73,14 @@ export interface IndexedDbSearchIndexOptions {
 }
 
 /**
- * IndexedDbSearchIndex implements hybrid keyword + vector search entirely
+ * IndexeddbSearchIndex implements hybrid keyword + vector search entirely
  * in JS over IndexedDB. It stores search chunks in a separate IDB object
  * store, scores them with TF-IDF (keyword) and cosine similarity (vector),
  * and fuses the results with Reciprocal Rank Fusion.
  */
-export class IndexedDbSearchIndex implements SearchIndexInterface {
+export class IndexeddbSearchIndex implements SearchIndexInterface {
   public constructor(
-    private readonly options: IndexedDbSearchIndexOptions,
+    private readonly options: IndexeddbSearchIndexOptions,
   ) {}
 
   /**
@@ -178,7 +178,7 @@ export class IndexedDbSearchIndex implements SearchIndexInterface {
     const quadsStore = this.options.quadsStore;
     if (!quadsStore) {
       throw new Error(
-        "IndexedDbSearchIndex reindex requires quadsStore in options",
+        "IndexeddbSearchIndex reindex requires quadsStore in options",
       );
     }
 
