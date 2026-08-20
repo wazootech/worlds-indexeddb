@@ -10,10 +10,10 @@
 </p>
 
 A browser-native, durable backend for the [`@worlds`](https://jsr.io/@worlds)
-écosystem — the same role `@worlds/sqlite` plays server-side. Provides an
-RDF/JS quad store over IndexedDB, hybrid search (TF-IDF + optional cosine
-vector similarity, fused with RRF), and a `createIndexeddbSdk` factory that
-wires the full Worlds SDK facade.
+ecosystem — the same role `@worlds/sqlite` plays server-side. Provides an RDF/JS
+quad store over IndexedDB, hybrid search (TF-IDF + optional cosine vector
+similarity, fused with RRF), and a `createIndexeddbSdk` factory that wires the
+full Worlds SDK facade.
 
 ## Install
 
@@ -86,15 +86,6 @@ const [searchResult, sparqlResult] = await Promise.all([
 deno task ci
 ```
 
-## Status
-
-Parity-green. The phase-4 parity suite passes the shared corpus against the
-in-memory reference (`@worlds/sdk/memory`). The storage layout and match()
-access-path strategy are recorded on
-[sparql-engine#163](https://github.com/wazootech/sparql-engine/issues/163) (map
-#162); the corpus/parity definition lives on
-[workspace#72](https://github.com/wazootech/workspace/issues/72).
-
 ## Design notes
 
 - **Zero runtime dependencies** — the IndexedDB API is a browser builtin; the
@@ -112,12 +103,12 @@ access-path strategy are recorded on
 - **Term identity** — row keys use the engine's `termKey` scheme, vendored
   in-repo and pinned by `term-key-parity.test.ts`, like `@worlds/sqlite`.
 - **Hybrid search (phase 2)** — `textSplitter` enables TF-IDF keyword search
-  over chunked literals; `embeddingService` adds cosine vector similarity;
-  both together give hybrid search fused with Reciprocal Rank Fusion
-  (k=60, matching the libsql reference). The bundled
-  `UniversalSentenceEncoderEmbeddingService` (512-d) runs entirely in-browser
-  via TF.js with no API key. With only `textSplitter`, search is keyword-only.
-  With neither, falls back to the scan-based `RdfjsSearchIndex`.
+  over chunked literals; `embeddingService` adds cosine vector similarity; both
+  together give hybrid search fused with Reciprocal Rank Fusion (k=60, matching
+  the libsql reference). The bundled `UniversalSentenceEncoderEmbeddingService`
+  (512-d) runs entirely in-browser via TF.js with no API key. With only
+  `textSplitter`, search is keyword-only. With neither, falls back to the
+  scan-based `RdfjsSearchIndex`.
 - **Async surface** — IndexedDB is inherently asynchronous: `match()` returns an
   async cursor-backed RDF/JS stream (the engine and SDK already read async
   streams), `countQuads()`/`getQuads()` return promises, and `size` is a live
