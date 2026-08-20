@@ -9,23 +9,11 @@
   <a href="https://github.com/wazootech/worlds-indexeddb"><img src="https://img.shields.io/badge/GitHub-black?logo=github" alt="GitHub" /></a>
 </p>
 
-**Status: parity-green, hybrid search.** `IndexedDbStore` is a real RDF/JS store
-over IndexedDB (cursor-streamed `match()`, atomic transactions) and
-`createIndexeddbSdk` wires the full Worlds SDK facade. When a `textSplitter` is
-provided, the SDK uses `IndexedDbSearchIndex` for JS-side search (TF-IDF
-keyword scoring + optional cosine vector similarity via `embeddingService`,
-fused with RRF k=60). The phase-4
-parity suite passes the shared corpus against the in-memory reference
-(`@worlds/sdk/memory`). The storage layout and match() access-path strategy are
-recorded on
-[sparql-engine#163](https://github.com/wazootech/sparql-engine/issues/163) (map
-#162); the corpus/parity definition lives on
-[workspace#72](https://github.com/wazootech/workspace/issues/72).
-
-IndexedDB is the browser's durable, local-first backend for the
-[`@worlds`](https://jsr.io/@worlds) ecosystem — the same role `@worlds/sqlite`
-plays server-side, packaged per the per-backend convention (`@worlds/libsql`,
-`@worlds/postgres`, `@worlds/sqlite`).
+A browser-native, durable backend for the [`@worlds`](https://jsr.io/@worlds)
+écosystem — the same role `@worlds/sqlite` plays server-side. Provides an
+RDF/JS quad store over IndexedDB, hybrid search (TF-IDF + optional cosine
+vector similarity, fused with RRF), and a `createIndexeddbSdk` factory that
+wires the full Worlds SDK facade.
 
 ## Install
 
@@ -38,10 +26,10 @@ deno add jsr:@worlds/indexeddb
 ### Basic: quad store + SPARQL
 
 ```typescript
-import { IndexedDbStore } from "@worlds/indexeddb/rdfjs-store";
+import { IndexeddbStore } from "@worlds/indexeddb/rdfjs-store";
 import { WazooSparqlEngine } from "@wazoo/sparql-engine";
 
-const store = new IndexedDbStore({ dbName: "wazoo-playground" });
+const store = new IndexeddbStore({ dbName: "wazoo-playground" });
 const engine = new WazooSparqlEngine({
   store,
   createTransaction: () => store.createTransaction(),
@@ -97,6 +85,15 @@ const [searchResult, sparqlResult] = await Promise.all([
 ```bash
 deno task ci
 ```
+
+## Status
+
+Parity-green. The phase-4 parity suite passes the shared corpus against the
+in-memory reference (`@worlds/sdk/memory`). The storage layout and match()
+access-path strategy are recorded on
+[sparql-engine#163](https://github.com/wazootech/sparql-engine/issues/163) (map
+#162); the corpus/parity definition lives on
+[workspace#72](https://github.com/wazootech/workspace/issues/72).
 
 ## Design notes
 
