@@ -12,8 +12,9 @@
 **Status: parity-green, hybrid search.** `IndexedDbStore` is a real RDF/JS store
 over IndexedDB (cursor-streamed `match()`, atomic transactions) and
 `createIndexeddbSdk` wires the full Worlds SDK facade. When a `textSplitter` is
-provided, the SDK uses `IndexedDbSearchIndex` for JS-side hybrid search (TF-IDF
-keyword scoring + cosine vector similarity, fused with RRF k=60). The phase-4
+provided, the SDK uses `IndexedDbSearchIndex` for JS-side search (TF-IDF
+keyword scoring + optional cosine vector similarity via `embeddingService`,
+fused with RRF k=60). The phase-4
 parity suite passes the shared corpus against the in-memory reference
 (`@worlds/sdk/memory`). The storage layout and match() access-path strategy are
 recorded on
@@ -56,12 +57,22 @@ const result = await engine.execute({
 ```typescript
 import { createIndexeddbSdk } from "@worlds/indexeddb/sdk";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import type { EmbeddingService } from "@worlds/sdk/search-index/embedding-service";
 
-// Pass a textSplitter to enable hybrid search (TF-IDF + cosine, RRF k=60).
-// Without textSplitter, falls back to scan-based keyword search.
+// Replace with your own embedding service (e.g. OpenAI, Gemini, TF.js USE).
+const embeddingService: EmbeddingService = {
+  embed: (texts) =>
+    Promise.resolve(texts.map(() => new Float32Array(1536).fill(0))),
+};
+
+// textSplitter enables TF-IDF keyword search over chunked literals.
+// embeddingService adds cosine vector similarity — both together give
+// hybrid search fused with Reciprocal Rank Fusion (k=60).
+// Without either, falls back to scan-based keyword search.
 const sdk = await createIndexeddbSdk({
   dbName: "wazoo-playground",
   textSplitter: new RecursiveCharacterTextSplitter({ chunkSize: 1000 }),
+  embeddingService,
 });
 
 await sdk.import({
@@ -73,7 +84,7 @@ await sdk.import({
   },
 });
 
-const { search, sparql } = await Promise.all([
+const [searchResult, sparqlResult] = await Promise.all([
   sdk.search({ query: "alice" }),
   sdk.sparql({
     query:
@@ -104,11 +115,11 @@ deno task ci
   by construction; `applyPatch` clears first for replace-mode imports.
 - **Term identity** — row keys use the engine's `termKey` scheme, vendored
   in-repo and pinned by `term-key-parity.test.ts`, like `@worlds/sqlite`.
-- **Hybrid search (phase 2)** — when a `textSplitter` is provided,
-  `createIndexeddbSdk` uses `IndexedDbSearchIndex` for JS-side TF-IDF keyword
-  scoring + cosine vector similarity, fused with Reciprocal Rank Fusion (k=60,
-  matching the libsql reference). Without a `textSplitter`, falls back to the
-  scan-based `RdfjsSearchIndex`.
+- **Hybrid search (phase 2)** — `textSplitter` enables TF-IDF keyword search
+  over chunked literals; `embeddingService` adds cosine vector similarity;
+  both together give hybrid search fused with Reciprocal Rank Fusion
+  (k=60, matching the libsql reference). With only `textSplitter`, search is
+  keyword-only. With neither, falls back to the scan-based `RdfjsSearchIndex`.
 - **Async surface** — IndexedDB is inherently asynchronous: `match()` returns an
   async cursor-backed RDF/JS stream (the engine and SDK already read async
   streams), `countQuads()`/`getQuads()` return promises, and `size` is a live
