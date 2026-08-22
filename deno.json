@@ -1,7 +1,7 @@
 {
   "name": "@worlds/indexeddb",
   "description": "IndexedDB durable backend for the Worlds client — RDF/JS quad primitive packaged with the worlds impl.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "WTFPL",
   "nodeModulesDir": "auto",
   "compilerOptions": {
