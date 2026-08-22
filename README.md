@@ -45,7 +45,8 @@ const result = await engine.execute({
 ```typescript
 import { createIndexeddbSdk } from "@worlds/indexeddb/sdk";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
-import { UniversalSentenceEncoderEmbeddingService } from "@worlds/sdk/tfjs-universal-sentence-encoder";
+// Vendored from worlds-sdk-ts examples/tfjs-universal-sentence-encoder/
+import { UniversalSentenceEncoderEmbeddingService } from "./vendor/universal-sentence-encoder-embedding-service.ts";
 
 // USE lite runs entirely in-browser via TF.js — no API key, no server.
 // The model (~6 MB) downloads from TF Hub on first use and is cached.

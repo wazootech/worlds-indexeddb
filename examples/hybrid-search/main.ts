@@ -11,7 +11,7 @@ import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 
 // USE lite runs entirely in-browser via TF.js — no API key, no server.
 // The model (~6 MB) downloads from TF Hub on first use and is cached.
-import { UniversalSentenceEncoderEmbeddingService } from "@worlds/sdk/tfjs-universal-sentence-encoder";
+import { UniversalSentenceEncoderEmbeddingService } from "./vendor/universal-sentence-encoder-embedding-service.ts";
 
 const embeddingService = new UniversalSentenceEncoderEmbeddingService();
 
