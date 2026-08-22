@@ -1,8 +1,8 @@
 /**
  * Phase-4 parity suite (workspace#69/#70, #72) — consumes the shared
  * @worlds/sdk/testing harness with the zero-dependency in-memory reference
- * (@worlds/sdk/memory's createMemorySdk) against the indexeddb SDK facade
- * (createIndexeddbSdk over the real IndexeddbStore).
+ * (@worlds/sdk/memory's createMemoryWorldsSdk) against the indexeddb SDK facade
+ * (createIndexeddbWorldsSdk over the real IndexeddbStore).
  *
  * Every candidate factory call uses a fresh, uniquely-named database so no
  * state leaks between cases or between the round-trip's two stores.
@@ -14,13 +14,13 @@
 import "fake-indexeddb/auto";
 import { assertEquals } from "@std/assert";
 import { parityCorpus, runParitySuite } from "@worlds/sdk/testing";
-import { createMemorySdk } from "@worlds/sdk/memory";
-import type { SdkInterface } from "@worlds/sdk";
-import { createIndexeddbSdk } from "@/indexeddb/sdk/mod.ts";
+import { createMemoryWorldsSdk } from "@worlds/sdk/memory";
+import type { WorldsSdkInterface } from "@worlds/sdk";
+import { createIndexeddbWorldsSdk } from "@/indexeddb/sdk/mod.ts";
 
 let dbCounter = 0;
-function createFreshIndexeddbSdk(): Promise<SdkInterface> {
-  return createIndexeddbSdk({
+function createFreshIndexeddbWorldsSdk(): Promise<WorldsSdkInterface> {
+  return createIndexeddbWorldsSdk({
     dbName: `parity-${crypto.randomUUID()}-${dbCounter++}`,
   });
 }
@@ -29,8 +29,8 @@ Deno.test(
   "parity suite - @worlds/indexeddb agrees with the in-memory reference on the full corpus",
   async () => {
     const report = await runParitySuite({
-      reference: () => createMemorySdk(),
-      candidate: () => createFreshIndexeddbSdk(),
+      reference: () => createMemoryWorldsSdk(),
+      candidate: () => createFreshIndexeddbWorldsSdk(),
       strictSearchOrder: false,
     });
 

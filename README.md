@@ -12,8 +12,8 @@
 A browser-native, durable backend for the [`@worlds`](https://jsr.io/@worlds)
 ecosystem — the same role `@worlds/sqlite` plays server-side. Provides an RDF/JS
 quad store over IndexedDB, hybrid search (TF-IDF + optional cosine vector
-similarity, fused with RRF), and a `createIndexeddbSdk` factory that wires the
-full Worlds SDK facade.
+similarity, fused with RRF), and a `createIndexeddbWorldsSdk` factory that wires
+the full Worlds SDK facade.
 
 ## Install
 
@@ -33,7 +33,7 @@ npx jsr add @worlds/indexeddb
 bundler needed.
 
 ```js
-import { createIndexeddbSdk } from "https://esm.sh/jsr/@worlds/indexeddb@0.1.0";
+import { createIndexeddbWorldsSdk } from "https://esm.sh/jsr/@worlds/indexeddb@0.1.0";
 ```
 
 With an import map:
@@ -47,14 +47,14 @@ With an import map:
 }
 </script>
 <script type="module">
-import { createIndexeddbSdk } from "@worlds/indexeddb";
+import { createIndexeddbWorldsSdk } from "@worlds/indexeddb";
 </script>
 ```
 
 Pin to an exact build for deterministic caching:
 
 ```js
-import { createIndexeddbSdk } from "https://esm.sh/jsr/@worlds/indexeddb@0.1.0?pin=v1724100000";
+import { createIndexeddbWorldsSdk } from "https://esm.sh/jsr/@worlds/indexeddb@0.1.0?pin=v1724100000";
 ```
 
 ## Usage
@@ -79,7 +79,7 @@ const result = await engine.execute({
 ### Full client: quad store + hybrid search + SPARQL
 
 ```typescript
-import { createIndexeddbSdk } from "@worlds/indexeddb/sdk";
+import { createIndexeddbWorldsSdk } from "@worlds/indexeddb/sdk";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 // Vendored from worlds-sdk-ts examples/tfjs-universal-sentence-encoder/
 import { UniversalSentenceEncoderEmbeddingService } from "./vendor/universal-sentence-encoder-embedding-service.ts";
@@ -92,7 +92,7 @@ const embeddingService = new UniversalSentenceEncoderEmbeddingService();
 // embeddingService adds 512-d cosine vector similarity — both together
 // give hybrid search fused with Reciprocal Rank Fusion (k=60).
 // Without either, falls back to scan-based keyword search.
-const sdk = await createIndexeddbSdk({
+const sdk = await createIndexeddbWorldsSdk({
   dbName: "wazoo-playground",
   textSplitter: new RecursiveCharacterTextSplitter({ chunkSize: 1000 }),
   embeddingService,

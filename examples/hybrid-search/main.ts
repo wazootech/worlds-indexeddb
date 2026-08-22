@@ -6,7 +6,7 @@
  *   deno run --allow-all examples/hybrid-search/main.ts
  */
 import "fake-indexeddb/auto";
-import { createIndexeddbSdk } from "../../src/indexeddb/sdk/mod.ts";
+import { createIndexeddbWorldsSdk } from "../../src/indexeddb/sdk/mod.ts";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 
 // USE lite runs entirely in-browser via TF.js — no API key, no server.
@@ -19,7 +19,7 @@ const embeddingService = new UniversalSentenceEncoderEmbeddingService();
 // embeddingService adds 512-d cosine vector similarity — both together
 // give hybrid search fused with Reciprocal Rank Fusion (k=60).
 // Without either, falls back to scan-based keyword search.
-const sdk = await createIndexeddbSdk({
+const sdk = await createIndexeddbWorldsSdk({
   dbName: `hybrid-search-${crypto.randomUUID()}`,
   textSplitter: new RecursiveCharacterTextSplitter({ chunkSize: 1000 }),
   embeddingService,
