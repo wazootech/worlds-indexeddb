@@ -1,6 +1,6 @@
 import type { SparqlEngineInterface } from "@wazoo/sparql-engine";
 import { WazooSparqlEngine } from "@wazoo/sparql-engine";
-import { Sdk, type SdkInterface } from "@worlds/sdk";
+import { WorldsSdk, type WorldsSdkInterface } from "@worlds/sdk";
 import { RdfjsQuadStore } from "@worlds/sdk/rdfjs";
 import type { TextSplitterInterface } from "@worlds/sdk/search-index/quad-chunker";
 import type { EmbeddingService } from "@worlds/sdk/search-index/embedding-service";
@@ -10,13 +10,13 @@ import { IdbChunkStore } from "@/indexeddb/search-index/mod.ts";
 import { IndexeddbSearchIndex } from "@/indexeddb/search-index/mod.ts";
 
 /**
- * IndexeddbSdkOptions configures createIndexeddbSdk.
+ * IndexeddbWorldsSdkOptions configures createIndexeddbWorldsSdk.
  *
  * The exact surface follows the org convention (`createSqliteSdk` precedent,
- * backends aligning on the `*Sdk` suffix): the store's options plus an
+ * backends aligning on the `*WorldsSdk` suffix): the store's options plus an
  * optional pre-wired SPARQL engine, text splitter, and embedding service.
  */
-export interface IndexeddbSdkOptions {
+export interface IndexeddbWorldsSdkOptions {
   /** IndexedDB database name backing the quad store. */
   dbName: string;
 
@@ -64,15 +64,15 @@ export interface IndexeddbSdkOptions {
 const DEFAULT_VECTOR_DIMENSIONS = 1536;
 
 /**
- * createIndexeddbSdk assembles a Worlds SDK facade over an IndexedDB-backed
+ * createIndexeddbWorldsSdk assembles a Worlds SDK facade over an IndexedDB-backed
  * quad store. When a `textSplitter` is provided, the SDK uses
  * `IndexeddbSearchIndex` for JS-side hybrid search (TF-IDF keyword scoring
  * + cosine vector similarity, fused with RRF k=60). When no textSplitter is
  * provided, the scan-based `RdfjsSearchIndex` is used as a fallback.
  */
-export async function createIndexeddbSdk(
-  options: IndexeddbSdkOptions,
-): Promise<SdkInterface> {
+export async function createIndexeddbWorldsSdk(
+  options: IndexeddbWorldsSdkOptions,
+): Promise<WorldsSdkInterface> {
   const store = new IndexeddbStore({
     dbName: options.dbName,
     storeName: options.storeName,
@@ -105,7 +105,7 @@ export async function createIndexeddbSdk(
     searchIndex = new RdfjsSearchIndex(store);
   }
 
-  return new Sdk({
+  return new WorldsSdk({
     quadStore: new RdfjsQuadStore({ store }),
     sparqlEngine: options.queryEngine ??
       new WazooSparqlEngine({
