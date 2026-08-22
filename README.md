@@ -12,8 +12,8 @@
 A browser-native, durable backend for the [`@worlds`](https://jsr.io/@worlds)
 ecosystem — the same role `@worlds/sqlite` plays server-side. Provides an RDF/JS
 quad store over IndexedDB, hybrid search (TF-IDF + optional cosine vector
-similarity, fused with RRF), and a `createIndexeddbWorldsSdk` factory that wires the
-full Worlds SDK facade.
+similarity, fused with RRF), and a `createIndexeddbWorldsSdk` factory that wires
+the full Worlds SDK facade.
 
 ## Install
 
