@@ -8,12 +8,12 @@
     "jsr:@std/path@^1.1.5": "1.1.6",
     "jsr:@wazoo/sparql-engine@0.4": "0.4.1",
     "jsr:@wazoo/sparql-engine@~0.4.1": "0.4.1",
-    "jsr:@worlds/sdk@0.6": "0.6.0",
-    "npm:@langchain/textsplitters@^1.0.1": "1.0.1_@langchain+core@1.2.8",
+    "jsr:@worlds/sdk@0.7": "0.7.0",
+    "npm:@langchain/textsplitters@^1.0.1": "1.0.1_@langchain+core@1.2.9",
     "npm:@rdfjs/types@^2.0.1": "2.0.1",
     "npm:@tensorflow/tfjs-backend-wasm@^4.22.0": "4.22.0_@tensorflow+tfjs-core@4.22.0",
     "npm:@tensorflow/tfjs@^4.22.0": "4.22.0_seedrandom@3.0.5",
-    "npm:ai@^6.0.195": "6.0.257_zod@4.4.3",
+    "npm:ai@^6.0.195": "6.0.271_zod@4.4.3",
     "npm:fake-indexeddb@6": "6.2.5"
   },
   "jsr": {
@@ -41,19 +41,22 @@
         "npm:@rdfjs/types"
       ]
     },
-    "@worlds/sdk@0.6.0": {
-      "integrity": "c8e7285a733d4a2e451b099ddf7a10f3920b4e1a02286ff000ca386d2502263b",
+    "@worlds/sdk@0.7.0": {
+      "integrity": "36459ea81bf12322d05e4a978f9b778cdd02829c6d93a2fc804d65e10dde7e29",
       "dependencies": [
         "jsr:@std/encoding",
+        "jsr:@std/path",
         "jsr:@wazoo/sparql-engine@~0.4.1",
         "npm:@rdfjs/types",
+        "npm:@tensorflow/tfjs",
+        "npm:@tensorflow/tfjs-backend-wasm",
         "npm:ai"
       ]
     }
   },
   "npm": {
-    "@ai-sdk/gateway@3.0.175_zod@4.4.3": {
-      "integrity": "sha512-fK5e5OtgjlpLio1M50ng+XKozPlBIKM/MKrlAIFyFfjC6gWWZaEh76e+OQPq7N0kkO/biVHyFXajxOtCN7YXQg==",
+    "@ai-sdk/gateway@3.0.184_zod@4.4.3": {
+      "integrity": "sha512-7SuKsT4RS9lm6ShODj0vzS+S1ZKw5GukA7x3gg3t/gVwk0bu7l3XXC3sdEdBsBlTP97KklMYdZHmjcJoOVt67Q==",
       "dependencies": [
         "@ai-sdk/provider",
         "@ai-sdk/provider-utils",
@@ -61,8 +64,8 @@
         "zod"
       ]
     },
-    "@ai-sdk/provider-utils@4.0.46_zod@4.4.3": {
-      "integrity": "sha512-tEtld97plCFiYevsJuOkGkeuhQndeMWFBVrJS4AjnbD5AqrNSXRCe0p+BZ3Cju/sxDeeZ9ym3q9YUV8fASA7aQ==",
+    "@ai-sdk/provider-utils@4.0.49_zod@4.4.3": {
+      "integrity": "sha512-8e7pd+82bobqrFOaD5dG/PiEuvLYr5olaE3I56ch0jipR0H7sGD6ohwTUynv6k8O8QidWiyIbEsZCtr/2dyXIA==",
       "dependencies": [
         "@ai-sdk/provider",
         "@standard-schema/spec",
@@ -80,8 +83,8 @@
     "@cfworker/json-schema@4.1.1": {
       "integrity": "sha512-gAmrUZSGtKc3AiBL71iNWxDsyUC5uMaKKGdvzYsBoTW/xi42JQHl7eKV2OYzCUqvc+D2RCcf7EXY2iCyFIk6og=="
     },
-    "@langchain/core@1.2.8": {
-      "integrity": "sha512-ppi2UaCYKqM4LEY8NWQ/JZ0Of0MAngHRvclceVeEQklcD/M6QKanlHPWblDnLO2m4vz7987b1Z4r33Ps6lf/ig==",
+    "@langchain/core@1.2.9": {
+      "integrity": "sha512-conzSEj9Zu1AyXJLXsSbgrtxtxinmI1yGqQ5CIJZSoV5rvv+yvQE/vgBnoySpBQ/bl3YPgj2FL/gbDjWykLSfg==",
       "dependencies": [
         "@cfworker/json-schema",
         "@standard-schema/spec",
@@ -92,7 +95,7 @@
         "zod"
       ]
     },
-    "@langchain/textsplitters@1.0.1_@langchain+core@1.2.8": {
+    "@langchain/textsplitters@1.0.1_@langchain+core@1.2.9": {
       "integrity": "sha512-rheJlB01iVtrOUzttscutRgLybPH9qR79EyzBEbf1u97ljWyuxQfCwIWK+SjoQTM9O8M7GGLLRBSYE26Jmcoww==",
       "dependencies": [
         "@langchain/core",
@@ -222,8 +225,8 @@
     "@webgpu/types@0.1.38": {
       "integrity": "sha512-7LrhVKz2PRh+DD7+S+PVaFd5HxaWQvoMqBbsV9fNJO1pjUs1P8bM2vQVNfk+3URTqbuTI7gkXi0rfsN0IadoBA=="
     },
-    "ai@6.0.257_zod@4.4.3": {
-      "integrity": "sha512-ezz/d5KKHmYl96qk8JdU3JRZwO6tFfaXVtDYCQmSUkdHwyF+cnygL75xE0EiCCMgpnmAcJSaPWaz8oGGf6TsEA==",
+    "ai@6.0.271_zod@4.4.3": {
+      "integrity": "sha512-8eS5Lhf5JT/ncw8+puVOa2cH+H6uKnHoORLqm6Ei3elwcoGIROrIh0VWhrKgbYLGpuz2pOTXW54nAJzPssQzAw==",
       "dependencies": [
         "@ai-sdk/gateway",
         "@ai-sdk/provider",
@@ -412,8 +415,8 @@
     "json-schema@0.4.0": {
       "integrity": "sha512-es94M3nTIfsEPisRafak+HDLfHXnKBhV3vU5eqPcS3flIWqcxJWgXHXiey3YrpaNsanY5ei1VoYEbOzijuq9BA=="
     },
-    "langsmith@0.8.11": {
-      "integrity": "sha512-dNKtyEiNS6L10qsRGKExQVHoMsRGBJt+xiBHn6G8JxslapedUhXVkvcDkhi00EuiIMeil+RevAVG8k6VM0B9ew==",
+    "langsmith@0.9.0": {
+      "integrity": "sha512-tlg/aG7qezAKY6G3fgADSX7PkRj+JKoF3z7QNkCMsAOvwvuzhiwP9Amn1Z+zAIxuKoWuXQdIjtFN0LVmUC1oUQ==",
       "dependencies": [
         "p-queue"
       ]
@@ -554,7 +557,7 @@
       "jsr:@std/assert@^1.0.19",
       "jsr:@std/path@^1.1.5",
       "jsr:@wazoo/sparql-engine@0.4",
-      "jsr:@worlds/sdk@0.6",
+      "jsr:@worlds/sdk@0.7",
       "npm:@langchain/textsplitters@^1.0.1",
       "npm:@rdfjs/types@^2.0.1",
       "npm:@tensorflow/tfjs-backend-wasm@^4.22.0",
