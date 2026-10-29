@@ -16,18 +16,16 @@ import type {
   SearchResponse,
   SearchResult,
 } from "@worlds/sdk/search-index";
-import type { TextSplitterInterface } from "@worlds/sdk/search-index/quad-chunker";
-import type { EmbeddingService } from "@worlds/sdk/search-index/embedding-service";
 import { filterQuads, isTextualLiteral } from "@worlds/sdk/quad-store";
 import { hashQuads } from "@worlds/sdk/quad-store";
 import type * as rdfjs from "@rdfjs/types";
 import { buildSearchResultId } from "./build-search-result-id.ts";
-import type { IdbChunkStore } from "./idb-chunk-store.ts";
 import {
   fuseWithRrf,
   searchKeyword,
   searchVector,
 } from "./js-search-engine.ts";
+import type { IndexeddbSearchIndexOptions } from "./indexeddb-search-index-options.ts";
 import { projectChunks } from "./idb-search-index-projector.ts";
 
 /** SearchRequestWithProfile extends SearchRequest with memory profile overrides. */
@@ -36,41 +34,7 @@ interface SearchRequestWithProfile extends SearchRequest {
   minScore?: number;
 }
 
-/** IndexeddbSearchIndexOptions configures the IndexedDB search engine. */
-export interface IndexeddbSearchIndexOptions {
-  /** chunkStore is the IDB-backed chunk store. */
-  chunkStore: IdbChunkStore;
-
-  /** textSplitter splits long literal values into chunk rows. */
-  textSplitter: TextSplitterInterface;
-
-  /** embeddingService optionally projects chunk text into comparison vectors. */
-  embeddingService?: EmbeddingService;
-
-  /**
-   * vectorDimensions pins the expected embedding dimensionality.
-   * Required when embeddingService is set (default 1536).
-   */
-  vectorDimensions?: number;
-
-  /** limit establishes the default search result cap (default 100). */
-  limit?: number;
-
-  /** include restricts search to quads matching these subject/predicate/graph values. */
-  include?: { subjects?: string[]; predicates?: string[]; graphs?: string[] };
-
-  /** exclude removes quads matching these subject/predicate/graph values from search. */
-  exclude?: { subjects?: string[]; predicates?: string[]; graphs?: string[] };
-
-  /** searchIndexOnImport controls when chunk projection runs during import. */
-  searchIndexOnImport?: "incremental" | "deferred" | "disabled";
-
-  /**
-   * quadsStore is the RDF/JS store used to scan quads during reindex.
-   * Required for the reindex pathway.
-   */
-  quadsStore?: rdfjs.Store & { size: number };
-}
+export type { IndexeddbSearchIndexOptions };
 
 /**
  * IndexeddbSearchIndex implements hybrid keyword + vector search entirely
