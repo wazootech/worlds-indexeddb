@@ -1,10 +1,11 @@
 import type * as rdfjs from "@rdfjs/types";
 
-// The implementation listener is any-parameterized so the typed overloads
-// below remain compatible with it (Node's own EventEmitter typings do the
-// same); the overloads are what consumers see.
-// deno-lint-ignore no-explicit-any
-type Listener = (...args: any[]) => void;
+import {
+  IdbEventEmitter,
+  type IdbQuadStreamOptions,
+  type Listener,
+} from "@/indexeddb/rdfjs-store/idb-event-emitter.ts";
+import { wireCursorRequest } from "@/indexeddb/rdfjs-store/idb-cursor.ts";
 
 /**
  * IdbQuadStream is a minimal RDF/JS Stream backed by an IndexedDB cursor,
@@ -23,9 +24,8 @@ type Listener = (...args: any[]) => void;
  * interface without depending on Node's `events` module, keeping the package
  * runtime dependency-free and browser-friendly.
  */
-export class IdbQuadStream implements rdfjs.Stream<rdfjs.Quad> {
-  private _listeners = new Map<string | symbol, Listener[]>();
-  private _maxListeners = 10;
+export class IdbQuadStream extends IdbEventEmitter
+  implements rdfjs.Stream<rdfjs.Quad> {
   private _ended = false;
   private _flowing = false;
   private _readStarted = false;
@@ -52,12 +52,10 @@ export class IdbQuadStream implements rdfjs.Stream<rdfjs.Quad> {
    */
   public constructor(
     private readonly open: () => Promise<IDBRequest<IDBCursorWithValue | null>>,
-    private readonly options: {
-      accept?: (quad: rdfjs.Quad) => boolean;
-      onRecord?: (cursor: IDBCursorWithValue) => void;
-      decode?: (value: unknown) => rdfjs.Quad;
-    } = {},
-  ) {}
+    private readonly options: IdbQuadStreamOptions = {},
+  ) {
+    super();
+  }
 
   public read(): rdfjs.Quad | null {
     this._readStarted = true;
@@ -82,10 +80,6 @@ export class IdbQuadStream implements rdfjs.Stream<rdfjs.Quad> {
     }
     this._ended = true;
     this.removeAllListeners();
-  }
-
-  public addListener(eventName: string | symbol, listener: Listener): this {
-    return this.on(eventName, listener);
   }
 
   /** Typed overloads mirror the Node-style surface of rdfjs.Stream. */
@@ -115,121 +109,6 @@ export class IdbQuadStream implements rdfjs.Stream<rdfjs.Quad> {
     return this;
   }
 
-  public once(eventName: "data", listener: (quad: rdfjs.Quad) => void): this;
-  public once(eventName: "readable", listener: () => void): this;
-  public once(eventName: "end", listener: () => void): this;
-  public once(eventName: "error", listener: (error: Error) => void): this;
-  public once(eventName: string | symbol, listener: Listener): this;
-  public once(eventName: string | symbol, listener: Listener): this {
-    const wrapper: Listener = (...args) => {
-      this.removeListener(eventName, wrapper);
-      listener(...args);
-    };
-    return this.on(eventName, wrapper);
-  }
-
-  public prependListener(
-    eventName: "data",
-    listener: (quad: rdfjs.Quad) => void,
-  ): this;
-  public prependListener(eventName: "readable", listener: () => void): this;
-  public prependListener(eventName: "end", listener: () => void): this;
-  public prependListener(
-    eventName: "error",
-    listener: (error: Error) => void,
-  ): this;
-  public prependListener(eventName: string | symbol, listener: Listener): this;
-  public prependListener(eventName: string | symbol, listener: Listener): this {
-    const list = this._listeners.get(eventName);
-    if (list) {
-      list.unshift(listener);
-    } else {
-      this._listeners.set(eventName, [listener]);
-    }
-    return this;
-  }
-
-  public prependOnceListener(
-    eventName: "data",
-    listener: (quad: rdfjs.Quad) => void,
-  ): this;
-  public prependOnceListener(eventName: "readable", listener: () => void): this;
-  public prependOnceListener(eventName: "end", listener: () => void): this;
-  public prependOnceListener(
-    eventName: "error",
-    listener: (error: Error) => void,
-  ): this;
-  public prependOnceListener(
-    eventName: string | symbol,
-    listener: Listener,
-  ): this {
-    const wrapper: Listener = (...args) => {
-      this.removeListener(eventName, wrapper);
-      listener(...args);
-    };
-    return this.prependListener(eventName, wrapper);
-  }
-
-  public removeListener(eventName: string | symbol, listener: Listener): this {
-    const list = this._listeners.get(eventName);
-    if (list) {
-      const index = list.indexOf(listener);
-      if (index >= 0) {
-        list.splice(index, 1);
-      }
-    }
-    return this;
-  }
-
-  public off(eventName: string | symbol, listener: Listener): this {
-    return this.removeListener(eventName, listener);
-  }
-
-  public removeAllListeners(eventName?: string | symbol): this {
-    if (eventName === undefined) {
-      this._listeners.clear();
-    } else {
-      this._listeners.delete(eventName);
-    }
-    return this;
-  }
-
-  public setMaxListeners(n: number): this {
-    this._maxListeners = n;
-    return this;
-  }
-
-  public getMaxListeners(): number {
-    return this._maxListeners;
-  }
-
-  public listeners(eventName: string | symbol): Listener[] {
-    return [...(this._listeners.get(eventName) ?? [])];
-  }
-
-  public rawListeners(eventName: string | symbol): Listener[] {
-    return [...(this._listeners.get(eventName) ?? [])];
-  }
-
-  public emit(eventName: string | symbol, ...args: unknown[]): boolean {
-    const list = this._listeners.get(eventName);
-    if (!list || list.length === 0) {
-      return false;
-    }
-    for (const fn of [...list]) {
-      fn.apply(this, args);
-    }
-    return true;
-  }
-
-  public listenerCount(eventName: string | symbol): number {
-    return this._listeners.get(eventName)?.length ?? 0;
-  }
-
-  public eventNames(): Array<string | symbol> {
-    return [...this._listeners.keys()];
-  }
-
   /**
    * _ensureStarted lazily opens the cursor on a microtask — after listeners
    * attach synchronously — then drives it to completion.
@@ -247,44 +126,26 @@ export class IdbQuadStream implements rdfjs.Stream<rdfjs.Quad> {
         if (this._ended) {
           return;
         }
-        request.onsuccess = () => {
-          if (this._ended) {
-            return;
-          }
-          const cursor = request.result;
-          if (cursor === null) {
+        wireCursorRequest(request, this.options, {
+          isEnded: () => this._ended,
+          onDone: () => {
             this._cursorDone = true;
             this._maybeEnd();
-            return;
-          }
-          const quad = this.options.decode
-            ? this.options.decode(cursor.value)
-            : cursor.value as unknown as rdfjs.Quad;
-          if (this.options.accept && !this.options.accept(quad)) {
-            cursor.continue();
-            return;
-          }
-          this.options.onRecord?.(cursor);
-          if (this._flowing) {
-            this.emit("data", quad);
-          } else if (this._readStarted) {
-            // Pull mode: buffer for read().
-            this._buffer.push(quad);
-            this.emit("readable");
-          }
-          // Bare completion mode (end/error listeners only): quads are
-          // skipped — the cursor still runs to exhaustion so the delete
-          // hook and end signal fire.
-          cursor.continue();
-        };
-        request.onerror = () => {
-          if (!this._ended) {
-            this.emit(
-              "error",
-              request.error ?? new Error("IndexedDB cursor request failed"),
-            );
-          }
-        };
+          },
+          onQuad: (quad) => {
+            if (this._flowing) {
+              this.emit("data", quad);
+            } else if (this._readStarted) {
+              // Pull mode: buffer for read().
+              this._buffer.push(quad);
+              this.emit("readable");
+            }
+            // Bare completion mode (end/error listeners only): quads are
+            // skipped — the cursor still runs to exhaustion so the delete
+            // hook and end signal fire.
+          },
+          onError: (error) => this.emit("error", error),
+        });
       }).catch((error: unknown) => {
         if (!this._ended) {
           this.emit(
