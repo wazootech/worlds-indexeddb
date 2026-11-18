@@ -11,7 +11,10 @@
       "dom.iterable"
     ]
   },
-  "minimumDependencyAge": 0,
+  "minimumDependencyAge": {
+    "age": "P1D",
+    "exclude": ["jsr:@wazoo/sparql-engine", "jsr:@worlds/sdk"]
+  },
   "exports": {
     ".": "./src/mod.ts",
     "./rdfjs-store": "./src/indexeddb/rdfjs-store/mod.ts",
