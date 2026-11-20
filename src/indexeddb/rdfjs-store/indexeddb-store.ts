@@ -49,31 +49,15 @@ import {
   toQuadRow,
 } from "@/indexeddb/rdfjs-store/quad-record.ts";
 import { IdbQuadStream } from "@/indexeddb/rdfjs-store/idb-stream.ts";
+import { DB_VERSION, upgradeSchema } from "@/indexeddb/schema.ts";
 import { sameRdfTerm, termKey } from "@/indexeddb/term/term-key.ts";
 import type { Patch } from "@worlds/sdk";
+import {
+  type IndexeddbTransaction,
+  PatchTransaction,
+} from "@/indexeddb/rdfjs-store/patch-transaction.ts";
 
-const INDEX_NAMES = ["skey", "pkey", "okey", "gkey"] as const;
-
-/**
- * IndexeddbTransaction is the atomic patch contract a SPARQL update uses to
- * buffer writes. It is structurally identical to the engine's
- * `WazooSparqlTransaction` (and the worlds client's Transaction), so a store
- * producing it satisfies the engine's `createTransaction` hook with no
- * cross-package import.
- */
-export interface IndexeddbTransaction {
-  /** add buffers a single quad for insertion on the next commit. */
-  add(quad: rdfjs.Quad): unknown;
-
-  /** delete buffers a single quad for deletion on the next commit. */
-  delete(quad: rdfjs.Quad): unknown;
-
-  /** commit persists the buffered patch (one IndexedDB readwrite transaction). */
-  commit(): Promise<void>;
-
-  /** rollback discards any uncommitted insertions and deletions. */
-  rollback(): void;
-}
+export type { IndexeddbTransaction };
 
 /** IndexeddbStoreOptions configures IndexeddbStore. */
 export interface IndexeddbStoreOptions {
@@ -82,42 +66,12 @@ export interface IndexeddbStoreOptions {
 
   /** Object store name for quads (defaults to "quads"). */
   storeName?: string;
-}
 
-/** IndexeddbTransactionImpl buffers a SPARQL update patch atomically. */
-class IndexeddbTransactionImpl implements IndexeddbTransaction {
-  /** quad key -> quad, for insert; a Map keeps the last insert of a key. */
-  private readonly inserted = new Map<string, rdfjs.Quad>();
-  /** quad key -> quad, buffered for deletion (net of any insert of the same key). */
-  private readonly deleted = new Map<string, rdfjs.Quad>();
-
-  public constructor(private readonly store: IndexeddbStore) {}
-
-  public add(quad: rdfjs.Quad): void {
-    this.deleted.delete(quadKey(quad));
-    this.inserted.set(quadKey(quad), quad);
-  }
-
-  public delete(quad: rdfjs.Quad): void {
-    if (this.inserted.delete(quadKey(quad))) {
-      return; // add + delete of the same quad nets to nothing
-    }
-    // Deleting an absent quad is a no-op at commit (delete by key), so the
-    // quad is retained here only for its key.
-    this.deleted.set(quadKey(quad), quad);
-  }
-
-  public commit(): Promise<void> {
-    return this.store.applyPatch({
-      insertions: [...this.inserted.values()],
-      deletions: [...this.deleted.values()],
-    });
-  }
-
-  public rollback(): void {
-    this.inserted.clear();
-    this.deleted.clear();
-  }
+  /**
+   * Object store name for search chunks (defaults to "search_chunks"). The store
+   * only creates it on upgrade so IdbChunkStore can open the same database.
+   */
+  chunkStoreName?: string;
 }
 
 /**
@@ -175,18 +129,12 @@ export class IndexeddbStore implements rdfjs.Store<rdfjs.Quad> {
         );
         return;
       }
-      const request = factory.open(this.options.dbName, 1);
-      request.onupgradeneeded = () => {
-        const db = request.result;
-        if (!db.objectStoreNames.contains(this.storeName)) {
-          const store = db.createObjectStore(this.storeName, {
-            keyPath: "key",
-          });
-          for (const indexName of INDEX_NAMES) {
-            store.createIndex(indexName, indexName);
-          }
-        }
-      };
+      const request = factory.open(this.options.dbName, DB_VERSION);
+      request.onupgradeneeded = () =>
+        upgradeSchema(request.result, {
+          quadStoreName: this.storeName,
+          chunkStoreName: this.options.chunkStoreName ?? "search_chunks",
+        });
       request.onsuccess = () => {
         const db = request.result;
         // Seed the live count once the connection is established.
@@ -267,7 +215,7 @@ export class IndexeddbStore implements rdfjs.Store<rdfjs.Quad> {
 
   /** createTransaction returns a fresh transaction over this store. */
   public createTransaction(): IndexeddbTransaction {
-    return new IndexeddbTransactionImpl(this);
+    return new PatchTransaction((patch) => this.applyPatch(patch));
   }
 
   public addQuad(quad: rdfjs.Quad): this;

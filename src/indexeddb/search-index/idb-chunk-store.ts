@@ -6,6 +6,7 @@
  * The store is opened alongside the quad store's database so all Writes are
  * coordinated through the same IndexedDB version lifecycle.
  */
+import { DB_VERSION, upgradeSchema } from "@/indexeddb/schema.ts";
 
 /** SearchChunkRecord is one persisted search chunk in IndexedDB. */
 export interface SearchChunkRecord {
@@ -33,16 +34,9 @@ export interface IdbChunkStoreOptions {
   dbName: string;
   /** chunkStoreName is the object store name for chunks (defaults to "search_chunks"). */
   chunkStoreName?: string;
+  /** storeName is the quad object store, created on upgrade if missing (defaults to "quads"). */
+  storeName?: string;
 }
-
-/** CHUNK_STORE_VERSION must be >= the quad store version (1) to trigger onupgradeneeded when the chunk store is added. */
-const CHUNK_STORE_VERSION = 2;
-
-/** QUADS_STORE_NAME is the name of the quad store used by IndexeddbStore. */
-const QUADS_STORE_NAME = "quads";
-
-/** QUADS_INDEX_NAMES are the positional indexes created by IndexeddbStore. */
-const QUADS_INDEX_NAMES = ["skey", "pkey", "okey", "gkey"] as const;
 
 /** txDone resolves when an IndexedDB transaction settles. */
 function txDone(tx: IDBTransaction): Promise<void> {
@@ -68,9 +62,8 @@ export class IdbChunkStore {
   }
 
   /**
-   * openDb opens (or upgrades) the IndexedDB database, creating the chunks
-   * object store on version upgrade. The version is bumped to 2 to add the
-   * new store alongside the existing quad store (version 1).
+   * openDb opens (or upgrades) the IndexedDB database at DB_VERSION, creating any
+   * missing object store through the schema shared with IndexeddbStore.
    */
   public openDb(): Promise<IDBDatabase> {
     if (this.dbPromise) {
@@ -87,28 +80,12 @@ export class IdbChunkStore {
         );
         return;
       }
-      const request = factory.open(this.options.dbName, CHUNK_STORE_VERSION);
-      request.onupgradeneeded = () => {
-        const db = request.result;
-        // Create the quads store if it doesn't exist yet (handles the case
-        // where the chunk store opens before IndexeddbStore).
-        if (!db.objectStoreNames.contains(QUADS_STORE_NAME)) {
-          const quadStore = db.createObjectStore(QUADS_STORE_NAME, {
-            keyPath: "key",
-          });
-          for (const indexName of QUADS_INDEX_NAMES) {
-            quadStore.createIndex(indexName, indexName);
-          }
-        }
-        // Create the chunks store for search.
-        if (!db.objectStoreNames.contains(this.chunkStoreName)) {
-          const chunkStore = db.createObjectStore(this.chunkStoreName, {
-            keyPath: "id",
-            autoIncrement: true,
-          });
-          chunkStore.createIndex("quad_id", "quad_id");
-        }
-      };
+      const request = factory.open(this.options.dbName, DB_VERSION);
+      request.onupgradeneeded = () =>
+        upgradeSchema(request.result, {
+          quadStoreName: this.options.storeName ?? "quads",
+          chunkStoreName: this.chunkStoreName,
+        });
       request.onsuccess = () => resolve(request.result);
       request.onerror = () =>
         reject(
