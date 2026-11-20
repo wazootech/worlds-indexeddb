@@ -8,6 +8,8 @@ import type { SearchIndexOnImport } from "@worlds/sdk/search-index";
 import { IndexeddbStore } from "@/indexeddb/rdfjs-store/mod.ts";
 import { IdbChunkStore } from "@/indexeddb/search-index/mod.ts";
 import { IndexeddbSearchIndex } from "@/indexeddb/search-index/mod.ts";
+import { createProjectingCommit } from "@/indexeddb/search-index/idb-projecting-commit.ts";
+import { PatchTransaction } from "@/indexeddb/rdfjs-store/patch-transaction.ts";
 
 /**
  * IndexeddbWorldsSdkOptions configures createIndexeddbWorldsSdk.
@@ -46,8 +48,11 @@ export interface IndexeddbWorldsSdkOptions {
   vectorDimensions?: number;
 
   /**
-   * searchIndexOnImport controls when chunk projection runs during import.
-   * Defaults to "incremental" when textSplitter is provided.
+   * searchIndexOnImport controls when chunks are written. It needs a
+   * textSplitter. "incremental" projects chunks in every commit (SDK imports
+   * and SPARQL updates), "deferred" does so except for imports, which rebuild
+   * once afterwards, and "disabled" (the default) never touches chunks on
+   * commit: only `reindex()` writes them.
    */
   searchIndexOnImport?: SearchIndexOnImport;
 
@@ -76,6 +81,7 @@ export async function createIndexeddbWorldsSdk(
   const store = new IndexeddbStore({
     dbName: options.dbName,
     storeName: options.storeName,
+    chunkStoreName: options.chunkStoreName,
   });
 
   // Open the quad store database first.
@@ -83,12 +89,14 @@ export async function createIndexeddbWorldsSdk(
 
   // Determine the search index: hybrid (if textSplitter provided) or scan-based.
   let searchIndex;
+  let commit: ReturnType<typeof createProjectingCommit> | undefined;
   if (options.textSplitter) {
     const chunkStore = new IdbChunkStore({
       dbName: options.dbName,
       chunkStoreName: options.chunkStoreName,
+      storeName: options.storeName,
     });
-    // Open the chunk store database (handles upgrade from v1 to v2).
+    // Open the chunk store on the same database (same schema version).
     await chunkStore.openDb();
 
     searchIndex = new IndexeddbSearchIndex({
@@ -99,6 +107,21 @@ export async function createIndexeddbWorldsSdk(
       searchIndexOnImport: options.searchIndexOnImport,
       quadsStore: store,
     });
+    const mode = options.searchIndexOnImport;
+    if (mode === "incremental" || mode === "deferred") {
+      const index = searchIndex;
+      commit = createProjectingCommit({
+        store,
+        chunkStore,
+        projector: {
+          chunkStore,
+          textSplitter: options.textSplitter,
+          embeddingService: options.embeddingService,
+        },
+        searchIndexOnImport: mode,
+        reindex: () => index.reindex(),
+      });
+    }
   } else {
     // Fallback: scan-based search (no chunking, no hybrid).
     const { RdfjsSearchIndex } = await import("@worlds/sdk/rdfjs");
@@ -106,11 +129,12 @@ export async function createIndexeddbWorldsSdk(
   }
 
   return new WorldsSdk({
-    quadStore: new RdfjsQuadStore({ store }),
+    quadStore: new RdfjsQuadStore({ store, commit }),
     sparqlEngine: options.queryEngine ??
       new WazooSparqlEngine({
         store,
-        createTransaction: () => store.createTransaction(),
+        createTransaction: () =>
+          commit ? new PatchTransaction(commit) : store.createTransaction(),
       }),
     searchIndex,
   });

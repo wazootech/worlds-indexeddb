@@ -7,6 +7,7 @@ export type {
 } from "./idb-chunk-store.ts";
 export {
   buildChunkFtsValue,
+  buildChunkRecords,
   projectChunks,
   refreshChunksForQuads,
 } from "./idb-search-index-projector.ts";
@@ -20,3 +21,5 @@ export {
   tokenize,
 } from "./js-search-engine.ts";
 export { buildSearchResultId } from "./build-search-result-id.ts";
+export { createProjectingCommit } from "./idb-projecting-commit.ts";
+export type { ProjectingCommitOptions } from "./idb-projecting-commit.ts";

@@ -6,7 +6,7 @@
 
 import type * as rdfjs from "@rdfjs/types";
 import type { TextSplitterInterface } from "@worlds/sdk/search-index/quad-chunker";
-import { chunkQuads } from "@worlds/sdk/search-index/quad-chunker";
+import { chunkAndEmbedQuads } from "@worlds/sdk/search-index/quad-chunker";
 import type { EmbeddingService } from "@worlds/sdk/search-index/embedding-service";
 import type { IdbChunkStore, SearchChunkRecord } from "./idb-chunk-store.ts";
 
@@ -38,54 +38,65 @@ export function buildChunkFtsValue(value: string): string {
 }
 
 /**
- * projectChunks creates search chunks from novel quad insertions. Each textual
- * literal is split into chunks (via the textSplitter), and each chunk is
- * optionally embedded and stored in the IDB chunk store.
+ * buildChunkRecords chunks and embeds novel quad insertions, through the shared
+ * `chunkAndEmbedQuads`, and returns the rows to write without writing them. A
+ * chunking failure rejects here, so a caller that builds first writes nothing.
+ * An embedding failure degrades: the records carry no vectors (keyword-only) and
+ * a reindex repairs them.
+ *
+ * The embedding input stays the chunk's original text. `ftsValueOf` is not
+ * used on purpose: it would also embed the lowercased text, changing the stored
+ * vectors. `vectorDimensions` is not forwarded either, because the SDK factory
+ * defaults it to 1536 and a service with another size (the 512-dimension
+ * Universal Sentence Encoder) would then degrade every projection.
  */
-export async function projectChunks(
+export async function buildChunkRecords(
   novelInsertions: rdfjs.Quad[],
   novelQuadIds: string[],
   options: ProjectorOptions,
-): Promise<void> {
-  if (novelInsertions.length === 0) return;
+): Promise<SearchChunkRecord[]> {
+  if (novelInsertions.length === 0) return [];
 
-  const chunks = await chunkQuads(
+  const { rows, embeddingError } = await chunkAndEmbedQuads(
     novelInsertions,
-    options.textSplitter,
     novelQuadIds,
+    {
+      textSplitter: options.textSplitter,
+      embeddingService: options.embeddingService,
+      onEmbeddingFailure: "degrade",
+    },
   );
+  if (embeddingError !== undefined) {
+    console.warn(
+      `[Search Warning] Embedding service failure during projection. ` +
+        `Chunks stored without vectors (keyword-only). Reason: ${
+          (embeddingError as Error).message
+        }`,
+    );
+  }
 
-  if (chunks.length === 0) return;
-
-  // Build chunk records with FTS values
-  const records: SearchChunkRecord[] = chunks.map((chunk) => ({
+  return rows.map(({ chunk, vector }) => ({
     quad_id: chunk.quad_id,
     subject: chunk.subject,
     predicate: chunk.predicate,
     graph: chunk.graph,
     value: chunk.value,
     fts_value: buildChunkFtsValue(chunk.value),
+    ...(vector ? { vector: Array.from(vector) } : {}),
   }));
+}
 
-  // Optionally embed chunk text
-  if (options.embeddingService) {
-    const textsToEmbed = records.map((r) => r.value);
-    try {
-      const vectors = await options.embeddingService.embed(textsToEmbed);
-      for (let i = 0; i < records.length; i++) {
-        records[i]!.vector = Array.from(vectors[i]!);
-      }
-    } catch (error) {
-      // Graceful degradation: store chunks without vectors (keyword-only search)
-      console.warn(
-        `[Search Warning] Embedding service failure during projection. ` +
-          `Chunks stored without vectors (keyword-only). Reason: ${
-            (error as Error).message
-          }`,
-      );
-    }
-  }
-
+/** projectChunks builds the chunk records for novel quad insertions and stores them. */
+export async function projectChunks(
+  novelInsertions: rdfjs.Quad[],
+  novelQuadIds: string[],
+  options: ProjectorOptions,
+): Promise<void> {
+  const records = await buildChunkRecords(
+    novelInsertions,
+    novelQuadIds,
+    options,
+  );
   await options.chunkStore.insertChunks(records);
 }
 

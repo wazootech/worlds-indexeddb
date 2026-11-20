@@ -18,8 +18,6 @@ import type {
 } from "@worlds/sdk/search-index";
 import type { TextSplitterInterface } from "@worlds/sdk/search-index/quad-chunker";
 import type { EmbeddingService } from "@worlds/sdk/search-index/embedding-service";
-import { filterQuads, isTextualLiteral } from "@worlds/sdk/quad-store";
-import { hashQuads } from "@worlds/sdk/quad-store";
 import type * as rdfjs from "@rdfjs/types";
 import { buildSearchResultId } from "./build-search-result-id.ts";
 import type { IdbChunkStore } from "./idb-chunk-store.ts";
@@ -28,7 +26,7 @@ import {
   searchKeyword,
   searchVector,
 } from "./js-search-engine.ts";
-import { projectChunks } from "./idb-search-index-projector.ts";
+import { reindexChunks } from "./idb-reindex.ts";
 
 /** SearchRequestWithProfile extends SearchRequest with memory profile overrides. */
 interface SearchRequestWithProfile extends SearchRequest {
@@ -62,7 +60,12 @@ export interface IndexeddbSearchIndexOptions {
   /** exclude removes quads matching these subject/predicate/graph values from search. */
   exclude?: { subjects?: string[]; predicates?: string[]; graphs?: string[] };
 
-  /** searchIndexOnImport controls when chunk projection runs during import. */
+  /**
+   * searchIndexOnImport is carried for callers that build the index by hand. It
+   * is not read here: `createIndexeddbWorldsSdk` reads it and wires chunk
+   * projection into the commit path (`createProjectingCommit`); this class only
+   * projects chunks in `reindex()`.
+   */
   searchIndexOnImport?: "incremental" | "deferred" | "disabled";
 
   /**
@@ -172,63 +175,7 @@ export class IndexeddbSearchIndex implements SearchIndexInterface {
    * reindex rebuilds search chunks from durable quads. This is idempotent —
    * running it multiple times produces the same result.
    */
-  public async reindex(
-    request?: ReindexRequest,
-  ): Promise<ReindexResponse> {
-    const quadsStore = this.options.quadsStore;
-    if (!quadsStore) {
-      throw new Error(
-        "IndexeddbSearchIndex reindex requires quadsStore in options",
-      );
-    }
-
-    const include = request?.include ?? this.options.include;
-    const exclude = request?.exclude ?? this.options.exclude;
-    const readPageSize = request?.readPageSize ?? 1000;
-
-    // Scan all quads from the store
-    const allQuads: rdfjs.Quad[] = [];
-    const stream = quadsStore.match(null, null, null, null);
-    await new Promise<void>((resolve, reject) => {
-      stream.on("data", (quad: rdfjs.Quad) => {
-        const matcher = filterQuads({ include, exclude });
-        if (matcher(quad)) {
-          allQuads.push(quad);
-        }
-      });
-      stream.on("end", () => resolve());
-      stream.on("error", reject);
-    });
-
-    // Clear existing chunks and re-project
-    await this.options.chunkStore.clear();
-
-    // Process in pages
-    for (let i = 0; i < allQuads.length; i += readPageSize) {
-      const page = allQuads.slice(i, i + readPageSize);
-      const quadIds = await hashQuads(page);
-
-      // Only project textual literals
-      const textChunks = page.filter((quad) => isTextualLiteral(quad.object));
-      const textQuadIds = quadIds.filter((_, index) =>
-        isTextualLiteral(page[index]!.object)
-      );
-
-      if (textChunks.length > 0) {
-        await projectChunks(textChunks, textQuadIds, {
-          chunkStore: this.options.chunkStore,
-          textSplitter: this.options.textSplitter,
-          embeddingService: this.options.embeddingService,
-          vectorDimensions: this.options.vectorDimensions,
-        });
-      }
-    }
-
-    const chunkRowCount = await this.options.chunkStore.countChunks();
-
-    return {
-      processedQuadCount: allQuads.length,
-      chunkRowCount,
-    };
+  public reindex(request?: ReindexRequest): Promise<ReindexResponse> {
+    return reindexChunks(this.options, request);
   }
 }

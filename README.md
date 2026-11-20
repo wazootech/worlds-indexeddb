@@ -97,6 +97,9 @@ const sdk = await createIndexeddbWorldsSdk({
   textSplitter: new RecursiveCharacterTextSplitter({ chunkSize: 1000 }),
   embeddingService,
   vectorDimensions: 512,
+  // Write search chunks as data is imported or updated. Unset (the default),
+  // chunks are only written by sdk.reindex().
+  searchIndexOnImport: "incremental",
 });
 
 await sdk.import({
@@ -161,7 +164,13 @@ dirty tree.
   the libsql reference). The bundled `UniversalSentenceEncoderEmbeddingService`
   (512-d) runs entirely in-browser via TF.js with no API key. With only
   `textSplitter`, search is keyword-only. With neither, falls back to the
-  scan-based `RdfjsSearchIndex`.
+  scan-based `RdfjsSearchIndex`. `searchIndexOnImport` (needs `textSplitter`)
+  decides when chunks are written: `"incremental"` in every commit (imports and
+  SPARQL updates), `"deferred"` the same except imports, which rebuild once
+  afterwards, and `"disabled"` (the default) never on commit, so only
+  `sdk.reindex()` writes them. Quads and chunks are separate IndexedDB
+  transactions, so a failure while writing chunks leaves the quads stored and
+  the chunks missing until a reindex; chunks never outlive their quads.
 - **Async surface** — IndexedDB is inherently asynchronous: `match()` returns an
   async cursor-backed RDF/JS stream (the engine and SDK already read async
   streams), `countQuads()`/`getQuads()` return promises, and `size` is a live
