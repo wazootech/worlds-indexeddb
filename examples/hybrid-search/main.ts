@@ -24,6 +24,9 @@ const sdk = await createIndexeddbWorldsSdk({
   textSplitter: new RecursiveCharacterTextSplitter({ chunkSize: 1000 }),
   embeddingService,
   vectorDimensions: 512,
+  // Write search chunks as data is imported or updated. Unset (the default),
+  // chunks are only written by sdk.reindex().
+  searchIndexOnImport: "incremental",
 });
 
 // Import some triples.
