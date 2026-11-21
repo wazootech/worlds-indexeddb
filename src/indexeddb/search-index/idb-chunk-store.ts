@@ -111,6 +111,16 @@ export class IdbChunkStore {
     await txDone(tx);
   }
 
+  /** replaceAll clears the store and writes `chunks` in one readwrite transaction. */
+  public async replaceAll(chunks: SearchChunkRecord[]): Promise<void> {
+    const db = await this.openDb();
+    const tx = db.transaction(this.chunkStoreName, "readwrite");
+    const store = tx.objectStore(this.chunkStoreName);
+    store.clear();
+    for (const chunk of chunks) store.put(chunk);
+    await txDone(tx);
+  }
+
   /**
    * deleteByQuadIds removes all chunks whose quad_id matches any of the given
    * ids. Returns the number of deleted records.

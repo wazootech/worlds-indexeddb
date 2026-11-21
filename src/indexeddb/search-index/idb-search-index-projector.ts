@@ -26,6 +26,14 @@ export interface ProjectorOptions {
    * the embedding service output). Required when embeddingService is set.
    */
   vectorDimensions?: number;
+
+  /**
+   * onEmbeddingFailure is what an embedding error does. "throw" (the default,
+   * shared by every worlds backend) rejects before anything is written, so the
+   * caller can retry. "degrade" stores keyword-only chunks and warns; a reindex
+   * repairs the vectors.
+   */
+  onEmbeddingFailure?: "throw" | "degrade";
 }
 
 /**
@@ -41,8 +49,8 @@ export function buildChunkFtsValue(value: string): string {
  * buildChunkRecords chunks and embeds novel quad insertions, through the shared
  * `chunkAndEmbedQuads`, and returns the rows to write without writing them. A
  * chunking failure rejects here, so a caller that builds first writes nothing.
- * An embedding failure degrades: the records carry no vectors (keyword-only) and
- * a reindex repairs them.
+ * An embedding failure rejects too, unless `onEmbeddingFailure` is "degrade":
+ * then the records carry no vectors (keyword-only) and a reindex repairs them.
  *
  * The embedding input stays the chunk's original text. `ftsValueOf` is not
  * used on purpose: it would also embed the lowercased text, changing the stored
@@ -63,7 +71,7 @@ export async function buildChunkRecords(
     {
       textSplitter: options.textSplitter,
       embeddingService: options.embeddingService,
-      onEmbeddingFailure: "degrade",
+      onEmbeddingFailure: options.onEmbeddingFailure ?? "throw",
     },
   );
   if (embeddingError !== undefined) {

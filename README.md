@@ -97,9 +97,12 @@ const sdk = await createIndexeddbWorldsSdk({
   textSplitter: new RecursiveCharacterTextSplitter({ chunkSize: 1000 }),
   embeddingService,
   vectorDimensions: 512,
-  // Write search chunks as data is imported or updated. Unset (the default),
-  // chunks are only written by sdk.reindex().
+  // Write search chunks as data is imported or updated ("incremental" is the
+  // default). Use "disabled" to write chunks only in sdk.reindex().
   searchIndexOnImport: "incremental",
+  // An embedding failure rejects the commit and writes nothing (the default).
+  // "degrade" stores keyword-only chunks instead.
+  onEmbeddingFailure: "throw",
 });
 
 await sdk.import({
@@ -165,12 +168,16 @@ dirty tree.
   (512-d) runs entirely in-browser via TF.js with no API key. With only
   `textSplitter`, search is keyword-only. With neither, falls back to the
   scan-based `RdfjsSearchIndex`. `searchIndexOnImport` (needs `textSplitter`)
-  decides when chunks are written: `"incremental"` in every commit (imports and
-  SPARQL updates), `"deferred"` the same except imports, which rebuild once
-  afterwards, and `"disabled"` (the default) never on commit, so only
-  `sdk.reindex()` writes them. Quads and chunks are separate IndexedDB
-  transactions, so a failure while writing chunks leaves the quads stored and
-  the chunks missing until a reindex; chunks never outlive their quads.
+  decides when chunks are written: `"incremental"` (the default, as in every
+  worlds backend) in every commit (imports and SPARQL updates), `"deferred"` the
+  same except imports, which rebuild once afterwards, and `"disabled"` never on
+  commit, so only `sdk.reindex()` writes them. Chunks are embedded before the
+  write, and the quads and their chunks are written in one IndexedDB
+  transaction, so a commit is atomic: an embedding failure (which rejects by
+  default; `onEmbeddingFailure: "degrade"` stores keyword-only chunks instead)
+  or a failed write leaves the prior quads and chunks untouched. Embedding
+  cannot run inside the transaction, since IndexedDB transactions auto-commit
+  across an await of a non-IndexedDB promise.
 - **Async surface** — IndexedDB is inherently asynchronous: `match()` returns an
   async cursor-backed RDF/JS stream (the engine and SDK already read async
   streams), `countQuads()`/`getQuads()` return promises, and `size` is a live

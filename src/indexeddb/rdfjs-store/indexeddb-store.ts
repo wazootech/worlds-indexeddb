@@ -49,6 +49,7 @@ import {
   toQuadRow,
 } from "@/indexeddb/rdfjs-store/quad-record.ts";
 import { IdbQuadStream } from "@/indexeddb/rdfjs-store/idb-stream.ts";
+import { type ChunkWrite, writeChunks } from "./chunk-write.ts";
 import { DB_VERSION, upgradeSchema } from "@/indexeddb/schema.ts";
 import { sameRdfTerm, termKey } from "@/indexeddb/term/term-key.ts";
 import type { Patch } from "@worlds/sdk";
@@ -167,12 +168,21 @@ export class IndexeddbStore implements rdfjs.Store<rdfjs.Quad> {
    */
   private enqueueWrite(
     work: (tx: IDBTransaction, store: IDBObjectStore) => void,
+    extraStores: string[] = [],
   ): Promise<void> {
     const next = this.mutationQueue.then(async () => {
       const db = await this.openDb();
-      const tx = db.transaction(this.storeName, "readwrite");
-      work(tx, tx.objectStore(this.storeName));
-      await txDone(tx);
+      const tx = db.transaction([this.storeName, ...extraStores], "readwrite");
+      const done = txDone(tx);
+      try {
+        work(tx, tx.objectStore(this.storeName));
+      } catch (error) {
+        // A transaction left open would auto-commit what `work` queued so far.
+        tx.abort();
+        done.catch(() => {});
+        throw error;
+      }
+      await done;
       const countRequest = db.transaction(this.storeName).objectStore(
         this.storeName,
       ).count();
@@ -194,13 +204,15 @@ export class IndexeddbStore implements rdfjs.Store<rdfjs.Quad> {
   /**
    * applyPatch persists a patch atomically — one readwrite transaction.
    * context.importMode === "replace" clears the store first (the SDK's
-   * replace-import contract).
+   * replace-import contract). With `chunks`, the chunk rows are written in
+   * that same transaction, so quads and chunks commit or abort together.
    */
   public applyPatch(
     patch: Patch,
     context?: { importMode?: "replace" | "merge" },
+    chunks?: ChunkWrite,
   ): Promise<void> {
-    return this.enqueueWrite((_tx, store) => {
+    return this.enqueueWrite((tx, store) => {
       if (context?.importMode === "replace") {
         store.clear();
       }
@@ -210,7 +222,8 @@ export class IndexeddbStore implements rdfjs.Store<rdfjs.Quad> {
       for (const quad of patch.insertions) {
         store.put(toQuadRow(quad));
       }
-    });
+      if (chunks) writeChunks(tx, chunks);
+    }, chunks ? [chunks.chunkStoreName] : []);
   }
 
   /** createTransaction returns a fresh transaction over this store. */

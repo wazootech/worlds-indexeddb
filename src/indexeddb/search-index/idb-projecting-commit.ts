@@ -16,15 +16,16 @@ export interface ProjectingCommitOptions {
   /** store is the quad store every commit writes to. */
   store: IndexeddbStore;
 
-  /** chunkStore holds the search chunks kept in step with the quads. */
+  /** chunkStore holds the search chunks kept in step with the quads. Same database as `store`. */
   chunkStore: IdbChunkStore;
 
   /** projector chunks and embeds the novel quads of a commit. */
   projector: ProjectorOptions;
 
   /**
-   * searchIndexOnImport is the indexing mode. IndexedDB defaults to "disabled":
-   * a commit never touches chunks and only a reindex writes them.
+   * searchIndexOnImport is the indexing mode. Defaults to "incremental", the
+   * default of every worlds backend; "disabled" is a plain `store.applyPatch`
+   * and only a reindex writes chunks.
    */
   searchIndexOnImport?: SearchIndexOnImport;
 
@@ -38,24 +39,23 @@ export interface ProjectingCommitOptions {
  * quads using the shared policy (`planSearchIndexing`) and novel-quad rule
  * (`preparePatch`, `selectNovelQuads`):
  *
- * 1. chunk and embed the novel quads (nothing is written if this throws);
- * 2. write the patch to the quad store (one IndexedDB readwrite transaction);
- * 3. drop the chunks of deleted quads (all chunks on a replace import) and
- *    write the new chunk rows (a deferred import reindexes instead).
+ * 1. chunk and embed the novel quads (an embedding failure throws here, by
+ *    default, before anything is written);
+ * 2. write the quads, the deleted quads' chunks (all chunks on a replace
+ *    import), and the new chunk rows in ONE IndexedDB readwrite transaction;
+ * 3. a deferred import reindexes once afterwards instead of projecting.
  *
- * Quads and chunks live in separate IndexedDB transactions, so a failure in
- * step 3 leaves the quads stored without chunks, never chunks without quads; a
- * reindex repairs it. In "disabled" mode (the default) it is a plain
- * `store.applyPatch`, byte for byte what the commit did before.
+ * Embedding is step 1 because a transaction auto-commits across an await of a
+ * non-IndexedDB promise, so it cannot wait on the embedding service. The commit
+ * is atomic: a failed write leaves the prior quads and chunks. In "disabled"
+ * mode it is a plain `store.applyPatch`.
  */
 export function createProjectingCommit(
   options: ProjectingCommitOptions,
 ): (patch: Patch, context?: TransactionContext) => Promise<void> {
   const { store, chunkStore, projector } = options;
   return async (patch, context) => {
-    const plan = planSearchIndexing(options.searchIndexOnImport, context, {
-      defaultMode: "disabled",
-    });
+    const plan = planSearchIndexing(options.searchIndexOnImport, context);
     if (!plan.projectDuringCommit && !plan.reindexAfterCommit) {
       return await store.applyPatch(patch, context);
     }
@@ -75,17 +75,12 @@ export function createProjectingCommit(
       projector,
     );
 
-    await store.applyPatch(patch, context);
-
-    if (replacing) {
-      await chunkStore.clear();
-    } else {
-      await chunkStore.deleteByQuadIds([
-        ...prepared.deletionIds,
-        ...novel.novelQuadIds,
-      ]);
-    }
-    await chunkStore.insertChunks(records);
+    await store.applyPatch(patch, context, {
+      chunkStoreName: chunkStore.chunkStoreName,
+      clear: replacing,
+      deleteQuadIds: [...prepared.deletionIds, ...novel.novelQuadIds],
+      records,
+    });
     if (plan.reindexAfterCommit) await options.reindex();
   };
 }
