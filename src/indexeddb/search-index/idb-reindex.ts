@@ -61,7 +61,6 @@ export async function reindexChunks(
         textSplitter: options.textSplitter,
         embeddingService: options.embeddingService,
         vectorDimensions: options.vectorDimensions,
-        onEmbeddingFailure: options.onEmbeddingFailure,
       }),
     );
   }

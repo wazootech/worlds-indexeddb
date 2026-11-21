@@ -133,16 +133,6 @@ Deno.test("an embedding failure throws and writes nothing", async () => {
   assertEquals((await s.chunkedQuadIds()).length, 0);
 });
 
-Deno.test("onEmbeddingFailure: degrade stores keyword-only chunks", async () => {
-  const s = await createIdbSubject({ embeddingService: failingEmbeddings }, {
-    onEmbeddingFailure: "degrade",
-  });
-  await s.commit({ insertions: [hello], deletions: [] });
-  const [chunk] = await s.chunkStore.getAllChunks();
-  assertEquals(chunk?.vector, undefined);
-  assertEquals(chunk?.fts_value, "hello world");
-});
-
 Deno.test("a reindex whose embedding fails keeps the existing chunks", async () => {
   const s = await createIdbSubject({ embeddingService });
   await s.commit({ insertions: [hello], deletions: [] });
@@ -204,20 +194,6 @@ Deno.test("factory: a failing embedding service rejects the import and stores no
   assertEquals((await sdk.search({ query: "needle" })).results?.length, 0);
   const all = await sdk.sparql({ query: "SELECT * WHERE { ?s ?p ?o }" });
   assert(!JSON.stringify(all).includes("urn:a"), "no quad may be stored");
-});
-
-Deno.test("factory: onEmbeddingFailure degrade keeps the import and its keyword search", async () => {
-  const sdk = await createIndexeddbWorldsSdk({
-    dbName: `factory-${crypto.randomUUID()}`,
-    textSplitter: wholeLiteral,
-    embeddingService: failingEmbeddings,
-    onEmbeddingFailure: "degrade",
-    vectorDimensions: 32,
-  });
-  await sdk.import({
-    source: { kind: "serialized", data: turtle, contentType: "text/turtle" },
-  });
-  assertEquals((await sdk.search({ query: "needle" })).results?.length, 1);
 });
 
 for (const mode of ["incremental", "deferred"] as const) {
