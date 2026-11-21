@@ -51,9 +51,6 @@ export interface IndexeddbSearchIndexOptions {
    */
   vectorDimensions?: number;
 
-  /** onEmbeddingFailure is what an embedding error does on reindex: "throw" (default) or "degrade". */
-  onEmbeddingFailure?: "throw" | "degrade";
-
   /** limit establishes the default search result cap (default 100). */
   limit?: number;
 

@@ -61,9 +61,6 @@ export type IdbSubject = CommitConformanceSubject & {
 
 /** IdbSubjectExtra tunes a subject beyond what the conformance suite configures. */
 export interface IdbSubjectExtra {
-  /** onEmbeddingFailure is passed to the projector and the index. */
-  onEmbeddingFailure?: "throw" | "degrade";
-
   /**
    * failInsideTransaction makes `failNextWrite` fail a chunk put inside the
    * commit's transaction (after the quad puts) instead of rejecting `applyPatch`
@@ -86,7 +83,6 @@ export async function createIdbSubject(
     chunkStore,
     textSplitter: wholeLiteral,
     embeddingService: options.embeddingService,
-    onEmbeddingFailure: extra.onEmbeddingFailure,
   };
   const index = new IndexeddbSearchIndex({
     ...projector,

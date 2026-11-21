@@ -58,13 +58,6 @@ export interface IndexeddbWorldsSdkOptions {
   searchIndexOnImport?: SearchIndexOnImport;
 
   /**
-   * onEmbeddingFailure is what an embedding error does. "throw" (the default,
-   * as in every worlds backend) rejects the commit before anything is written.
-   * "degrade" stores keyword-only chunks and warns; `reindex()` repairs them.
-   */
-  onEmbeddingFailure?: "throw" | "degrade";
-
-  /**
    * SPARQL engine to wire as the SDK's sparqlEngine. Defaults to a
    * WazooSparqlEngine over the IndexeddbStore with its `createTransaction`
    * hook, so SPARQL updates commit atomically (one IDB readwrite
@@ -112,7 +105,6 @@ export async function createIndexeddbWorldsSdk(
       textSplitter: options.textSplitter,
       embeddingService: options.embeddingService,
       vectorDimensions: options.vectorDimensions ?? DEFAULT_VECTOR_DIMENSIONS,
-      onEmbeddingFailure: options.onEmbeddingFailure,
       searchIndexOnImport: options.searchIndexOnImport,
       quadsStore: store,
     });
@@ -125,7 +117,6 @@ export async function createIndexeddbWorldsSdk(
           chunkStore,
           textSplitter: options.textSplitter,
           embeddingService: options.embeddingService,
-          onEmbeddingFailure: options.onEmbeddingFailure,
         },
         searchIndexOnImport: options.searchIndexOnImport,
         reindex: () => index.reindex(),
