@@ -18,28 +18,61 @@ const hello = quad(namedNode("urn:a"), p, literal("Hello World"), g);
 const other = quad(namedNode("urn:b"), p, literal("Other Text"), g);
 const embeddingService = new FakeEmbeddingService();
 
-Deno.test("a chunk write that fails after the quads are stored leaves quads without chunks, and reindex repairs it", async () => {
-  const s = await createIdbSubject({
-    searchIndexOnImport: "incremental",
-    embeddingService,
-  });
+Deno.test("a chunk write that fails after the quad puts aborts the whole commit", async () => {
+  const s = await createIdbSubject({ embeddingService });
+  await s.commit({ insertions: [other], deletions: [] });
+  s.failNextChunkWrite();
+  await assertRejects(() =>
+    s.commit({ insertions: [hello], deletions: [other] })
+  );
+  // Neither the new quad, nor the deletion, nor the chunk changes landed.
+  assertEquals((await s.storedQuads()).map((q) => q.subject.value), ["urn:b"]);
+  assertEquals(await s.chunkedQuadIds(), [hashQuad(other)]);
+  // The failure is not sticky: the same commit now succeeds.
+  await s.commit({ insertions: [hello], deletions: [other] });
+  assertEquals(await s.chunkedQuadIds(), [hashQuad(hello)]);
+});
+
+Deno.test("a failed replace import keeps the old graph and its chunks", async () => {
+  const s = await createIdbSubject({ embeddingService });
+  await s.commit({ insertions: [hello], deletions: [] });
   s.failNextChunkWrite();
   await assertRejects(
-    () => s.commit({ insertions: [hello], deletions: [] }),
+    () =>
+      s.commit({ insertions: [other], deletions: [] }, {
+        importMode: "replace",
+      }),
     Error,
     "injected chunk write failure",
   );
+  assertEquals((await s.storedQuads()).map((q) => q.subject.value), ["urn:a"]);
+  assertEquals(await s.chunkedQuadIds(), [hashQuad(hello)]);
+});
+
+Deno.test("the default mode is incremental: a commit writes quads and chunks", async () => {
+  const s = await createIdbSubject({ embeddingService });
+  await s.commit({ insertions: [hello], deletions: [] });
+  assertEquals((await s.storedQuads()).length, 1);
+  assertEquals(await s.chunkedQuadIds(), [hashQuad(hello)]);
+});
+
+Deno.test("disabled never touches chunks on commit; only reindex writes them", async () => {
+  const s = await createIdbSubject({
+    searchIndexOnImport: "disabled",
+    embeddingService,
+  });
+  await s.commit({ insertions: [hello], deletions: [] });
   assertEquals((await s.storedQuads()).length, 1);
   assertEquals((await s.chunkedQuadIds()).length, 0);
   await s.index.reindex();
   assertEquals(await s.chunkedQuadIds(), [hashQuad(hello)]);
 });
 
-Deno.test("the default mode never touches chunks on commit", async () => {
+Deno.test("a re-inserted quad keeps exactly one chunk row", async () => {
   const s = await createIdbSubject({ embeddingService });
   await s.commit({ insertions: [hello], deletions: [] });
-  assertEquals((await s.storedQuads()).length, 1);
-  assertEquals((await s.chunkedQuadIds()).length, 0);
+  await s.commit({ insertions: [hello], deletions: [hello] });
+  assertEquals(await s.chunkedQuadIds(), [hashQuad(hello)]);
 });
 
 Deno.test("a replace import drops the chunks of the wiped graph", async () => {
@@ -85,17 +118,45 @@ Deno.test("embeddings use the original text while keyword text is lowercased", a
   assert(chunk?.vector?.length === 32);
 });
 
-Deno.test("an embedding failure stores keyword-only chunks", async () => {
-  const s = await createIdbSubject({
-    searchIndexOnImport: "incremental",
-    embeddingService: {
-      embed: () => Promise.reject(new Error("embedding service unavailable")),
-    },
+const failingEmbeddings: EmbeddingService = {
+  embed: () => Promise.reject(new Error("embedding service unavailable")),
+};
+
+Deno.test("an embedding failure throws and writes nothing", async () => {
+  const s = await createIdbSubject({ embeddingService: failingEmbeddings });
+  await assertRejects(
+    () => s.commit({ insertions: [hello], deletions: [] }),
+    Error,
+    "failed to vectorize",
+  );
+  assertEquals((await s.storedQuads()).length, 0);
+  assertEquals((await s.chunkedQuadIds()).length, 0);
+});
+
+Deno.test("onEmbeddingFailure: degrade stores keyword-only chunks", async () => {
+  const s = await createIdbSubject({ embeddingService: failingEmbeddings }, {
+    onEmbeddingFailure: "degrade",
   });
   await s.commit({ insertions: [hello], deletions: [] });
   const [chunk] = await s.chunkStore.getAllChunks();
   assertEquals(chunk?.vector, undefined);
   assertEquals(chunk?.fts_value, "hello world");
+});
+
+Deno.test("a reindex whose embedding fails keeps the existing chunks", async () => {
+  const s = await createIdbSubject({ embeddingService });
+  await s.commit({ insertions: [hello], deletions: [] });
+  const broken = await createIdbSubject({
+    embeddingService: failingEmbeddings,
+  });
+  await broken.store.applyPatch({ insertions: [hello], deletions: [] });
+  await broken.chunkStore.insertChunks(await s.chunkStore.getAllChunks());
+  await assertRejects(
+    () => broken.index.reindex(),
+    Error,
+    "failed to vectorize",
+  );
+  assertEquals(await broken.chunkedQuadIds(), [hashQuad(hello)]);
 });
 
 const turtle =
@@ -110,13 +171,52 @@ async function sdkWith(mode?: "incremental" | "deferred" | "disabled") {
   });
 }
 
-Deno.test("factory: with the option unset an import is not searchable until reindex", async () => {
+Deno.test("factory: with the option unset an import is searchable at once (incremental)", async () => {
   const sdk = await sdkWith();
+  await sdk.import({
+    source: { kind: "serialized", data: turtle, contentType: "text/turtle" },
+  });
+  assertEquals((await sdk.search({ query: "needle" })).results?.length, 1);
+});
+
+Deno.test("factory: disabled keeps an import unsearchable until reindex", async () => {
+  const sdk = await sdkWith("disabled");
   await sdk.import({
     source: { kind: "serialized", data: turtle, contentType: "text/turtle" },
   });
   assertEquals((await sdk.search({ query: "needle" })).results?.length, 0);
   await sdk.reindex();
+  assertEquals((await sdk.search({ query: "needle" })).results?.length, 1);
+});
+
+Deno.test("factory: a failing embedding service rejects the import and stores nothing", async () => {
+  const sdk = await createIndexeddbWorldsSdk({
+    dbName: `factory-${crypto.randomUUID()}`,
+    textSplitter: wholeLiteral,
+    embeddingService: failingEmbeddings,
+    vectorDimensions: 32,
+  });
+  await assertRejects(() =>
+    sdk.import({
+      source: { kind: "serialized", data: turtle, contentType: "text/turtle" },
+    })
+  );
+  assertEquals((await sdk.search({ query: "needle" })).results?.length, 0);
+  const all = await sdk.sparql({ query: "SELECT * WHERE { ?s ?p ?o }" });
+  assert(!JSON.stringify(all).includes("urn:a"), "no quad may be stored");
+});
+
+Deno.test("factory: onEmbeddingFailure degrade keeps the import and its keyword search", async () => {
+  const sdk = await createIndexeddbWorldsSdk({
+    dbName: `factory-${crypto.randomUUID()}`,
+    textSplitter: wholeLiteral,
+    embeddingService: failingEmbeddings,
+    onEmbeddingFailure: "degrade",
+    vectorDimensions: 32,
+  });
+  await sdk.import({
+    source: { kind: "serialized", data: turtle, contentType: "text/turtle" },
+  });
   assertEquals((await sdk.search({ query: "needle" })).results?.length, 1);
 });
 

@@ -49,12 +49,20 @@ export interface IndexeddbWorldsSdkOptions {
 
   /**
    * searchIndexOnImport controls when chunks are written. It needs a
-   * textSplitter. "incremental" projects chunks in every commit (SDK imports
-   * and SPARQL updates), "deferred" does so except for imports, which rebuild
-   * once afterwards, and "disabled" (the default) never touches chunks on
-   * commit: only `reindex()` writes them.
+   * textSplitter. "incremental" (the default, as in every worlds backend)
+   * projects chunks in every commit (SDK imports and SPARQL updates),
+   * "deferred" does so except for imports, which rebuild once afterwards, and
+   * "disabled" never touches chunks on commit: only `reindex()` writes them.
+   * Quads and chunks are written in one IndexedDB transaction.
    */
   searchIndexOnImport?: SearchIndexOnImport;
+
+  /**
+   * onEmbeddingFailure is what an embedding error does. "throw" (the default,
+   * as in every worlds backend) rejects the commit before anything is written.
+   * "degrade" stores keyword-only chunks and warns; `reindex()` repairs them.
+   */
+  onEmbeddingFailure?: "throw" | "degrade";
 
   /**
    * SPARQL engine to wire as the SDK's sparqlEngine. Defaults to a
@@ -104,11 +112,11 @@ export async function createIndexeddbWorldsSdk(
       textSplitter: options.textSplitter,
       embeddingService: options.embeddingService,
       vectorDimensions: options.vectorDimensions ?? DEFAULT_VECTOR_DIMENSIONS,
+      onEmbeddingFailure: options.onEmbeddingFailure,
       searchIndexOnImport: options.searchIndexOnImport,
       quadsStore: store,
     });
-    const mode = options.searchIndexOnImport;
-    if (mode === "incremental" || mode === "deferred") {
+    if (options.searchIndexOnImport !== "disabled") {
       const index = searchIndex;
       commit = createProjectingCommit({
         store,
@@ -117,8 +125,9 @@ export async function createIndexeddbWorldsSdk(
           chunkStore,
           textSplitter: options.textSplitter,
           embeddingService: options.embeddingService,
+          onEmbeddingFailure: options.onEmbeddingFailure,
         },
-        searchIndexOnImport: mode,
+        searchIndexOnImport: options.searchIndexOnImport,
         reindex: () => index.reindex(),
       });
     }

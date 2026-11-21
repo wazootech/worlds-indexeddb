@@ -35,18 +35,47 @@ export async function collectQuads(
   return quads;
 }
 
-/** createIdbSubject wires the real IndexedDB commit path with the suite's hooks. */
+/**
+ * failNextChunkPut makes the next `put` into the chunk object store throw once.
+ * Inside a commit's transaction that is a LATER write than the quad puts, so it
+ * tells an atomic commit from one that stored the quads first.
+ */
+function failNextChunkPut(chunkStoreName: string): void {
+  const proto = IDBObjectStore.prototype;
+  const put = proto.put;
+  proto.put = function (this: IDBObjectStore, ...args) {
+    if (this.name !== chunkStoreName) return put.apply(this, args);
+    proto.put = put;
+    throw new Error("injected chunk write failure");
+  };
+}
+
 /** IdbSubject is the conformance subject plus the parts a test may break or inspect. */
 export type IdbSubject = CommitConformanceSubject & {
   store: IndexeddbStore;
   chunkStore: IdbChunkStore;
   index: IndexeddbSearchIndex;
-  /** failNextChunkWrite makes the next chunk insert fail once, after the quads are stored. */
+  /** failNextChunkWrite makes the next chunk put fail once, after the quad puts in the same transaction. */
   failNextChunkWrite(): void;
 };
 
+/** IdbSubjectExtra tunes a subject beyond what the conformance suite configures. */
+export interface IdbSubjectExtra {
+  /** onEmbeddingFailure is passed to the projector and the index. */
+  onEmbeddingFailure?: "throw" | "degrade";
+
+  /**
+   * failInsideTransaction makes `failNextWrite` fail a chunk put inside the
+   * commit's transaction (after the quad puts) instead of rejecting `applyPatch`
+   * up front, so the suite exercises a failure in a later write.
+   */
+  failInsideTransaction?: boolean;
+}
+
+/** createIdbSubject wires the real IndexedDB commit path with the suite's hooks. */
 export async function createIdbSubject(
   options: CommitConformanceCreateOptions,
+  extra: IdbSubjectExtra = {},
 ): Promise<IdbSubject> {
   const dbName = `conformance-${crypto.randomUUID()}`;
   const store = new IndexeddbStore({ dbName });
@@ -57,6 +86,7 @@ export async function createIdbSubject(
     chunkStore,
     textSplitter: wholeLiteral,
     embeddingService: options.embeddingService,
+    onEmbeddingFailure: extra.onEmbeddingFailure,
   };
   const index = new IndexeddbSearchIndex({
     ...projector,
@@ -66,12 +96,12 @@ export async function createIdbSubject(
   let rebuilds = 0;
   let failArmed = false;
   const applyPatch = store.applyPatch.bind(store);
-  store.applyPatch = (patch, context) => {
+  store.applyPatch = (patch, context, chunks) => {
     if (failArmed) {
       failArmed = false;
       return Promise.reject(new Error("injected write failure"));
     }
-    return applyPatch(patch, context);
+    return applyPatch(patch, context, chunks);
   };
   const commit = createProjectingCommit({
     store,
@@ -83,28 +113,21 @@ export async function createIdbSubject(
       return index.reindex();
     },
   });
-  let chunkFailArmed = false;
-  const insertChunks = chunkStore.insertChunks.bind(chunkStore);
-  chunkStore.insertChunks = (records) => {
-    if (chunkFailArmed) {
-      chunkFailArmed = false;
-      return Promise.reject(new Error("injected chunk write failure"));
-    }
-    return insertChunks(records);
-  };
   return {
     store,
     chunkStore,
     index,
-    failNextChunkWrite: () => {
-      chunkFailArmed = true;
-    },
+    failNextChunkWrite: () => failNextChunkPut(chunkStore.chunkStoreName),
     commit,
     storedQuads: () => collectQuads(store),
     chunkedQuadIds: async () =>
       (await chunkStore.getAllChunks()).map((chunk) => chunk.quad_id),
     failNextWrite: () => {
-      failArmed = true;
+      if (extra.failInsideTransaction) {
+        failNextChunkPut(chunkStore.chunkStoreName);
+      } else {
+        failArmed = true;
+      }
     },
     fullRebuildCount: () => rebuilds,
   };

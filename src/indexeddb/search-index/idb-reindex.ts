@@ -6,11 +6,13 @@ import {
   isTextualLiteral,
 } from "@worlds/sdk/quad-store";
 import type { IndexeddbSearchIndexOptions } from "./indexeddb-search-index.ts";
-import { projectChunks } from "./idb-search-index-projector.ts";
+import { buildChunkRecords } from "./idb-search-index-projector.ts";
+import type { SearchChunkRecord } from "./idb-chunk-store.ts";
 
 /**
  * reindexChunks rebuilds every search chunk from the quads in `quadsStore`: it
- * clears the chunk store, then projects the textual literals page by page.
+ * chunks and embeds the textual literals page by page, then swaps the whole
+ * chunk store in one transaction, so a failed embedding leaves the old chunks.
  */
 export async function reindexChunks(
   options: IndexeddbSearchIndexOptions,
@@ -41,10 +43,8 @@ export async function reindexChunks(
     stream.on("error", reject);
   });
 
-  // Clear existing chunks and re-project
-  await options.chunkStore.clear();
-
-  // Process in pages
+  // Build every row first; nothing is written until all pages are embedded.
+  const records: SearchChunkRecord[] = [];
   for (let i = 0; i < allQuads.length; i += readPageSize) {
     const page = allQuads.slice(i, i + readPageSize);
     const quadIds = await hashQuads(page);
@@ -55,20 +55,21 @@ export async function reindexChunks(
       isTextualLiteral(page[index]!.object)
     );
 
-    if (textChunks.length > 0) {
-      await projectChunks(textChunks, textQuadIds, {
+    records.push(
+      ...await buildChunkRecords(textChunks, textQuadIds, {
         chunkStore: options.chunkStore,
         textSplitter: options.textSplitter,
         embeddingService: options.embeddingService,
         vectorDimensions: options.vectorDimensions,
-      });
-    }
+        onEmbeddingFailure: options.onEmbeddingFailure,
+      }),
+    );
   }
 
-  const chunkRowCount = await options.chunkStore.countChunks();
+  await options.chunkStore.replaceAll(records);
 
   return {
     processedQuadCount: allQuads.length,
-    chunkRowCount,
+    chunkRowCount: records.length,
   };
 }
