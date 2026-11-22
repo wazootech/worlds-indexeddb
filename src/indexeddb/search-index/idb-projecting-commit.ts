@@ -3,16 +3,15 @@ import type {
   QuadFilter,
   TransactionContext,
 } from "@worlds/sdk/quad-store";
-import { preparePatch, selectNovelQuads } from "@worlds/sdk/quad-store";
 import type { SearchIndexOnImport } from "@worlds/sdk/search-index";
-import { planSearchIndexing } from "@worlds/sdk/search-index";
+import { prepareCommit } from "@worlds/sdk/search-index";
 import type { IndexeddbStore } from "@/indexeddb/rdfjs-store/indexeddb-store.ts";
 import { quadKey } from "@/indexeddb/rdfjs-store/quad-record.ts";
 import { findStoredQuadKeys } from "@/indexeddb/rdfjs-store/stored-quad-keys.ts";
 import type { IdbChunkStore } from "./idb-chunk-store.ts";
 import {
-  buildChunkRecords,
   type ProjectorOptions,
+  toChunkRecords,
 } from "./idb-search-index-projector.ts";
 
 /** ProjectingCommitOptions wires the quad store, the chunk store, and the indexing mode. */
@@ -44,16 +43,19 @@ export interface ProjectingCommitOptions extends QuadFilter {
 /**
  * createProjectingCommit returns the commit function for the IndexedDB quad
  * store. In "incremental" and "deferred" mode it keeps chunks in step with
- * quads using the shared policy (`planSearchIndexing`) and novel-quad rule
- * (`preparePatch`, `selectNovelQuads`):
+ * quads through the shared pre-write step (`prepareCommit`), which runs, in
+ * order and before any write:
  *
- * 0. apply the include/exclude filter to both sides of the patch, as the SQL
- *    core does (`preparePatch(patch, filter)`): a quad outside the filter is
- *    neither stored nor projected, so a commit and a reindex agree;
- * 1. chunk and embed the novel quads (an embedding failure throws here, by
- *    default, before anything is written);
- * 2. write the quads, the deleted quads' chunks (all chunks on a replace
- *    import), and the new chunk rows in ONE IndexedDB readwrite transaction;
+ * 0. the include/exclude filter on both sides of the patch, as the SQL core
+ *    does: a quad outside the filter is neither stored nor projected, so a
+ *    commit and a reindex agree;
+ * 1. the indexing plan, the novel-quad selection (looked up only when this
+ *    commit projects, since the store dedupes its own writes), and the
+ *    chunking and embedding of the novel quads (an embedding failure throws
+ *    here, by default, before anything is written);
+ * 2. this function then writes the quads, the deleted quads' chunks (all chunks
+ *    on a replace import), and the new chunk rows in ONE IndexedDB readwrite
+ *    transaction;
  * 3. a deferred import reindexes once afterwards instead of projecting.
  *
  * Embedding is step 1 because a transaction auto-commits across an await of a
@@ -68,26 +70,24 @@ export function createProjectingCommit(
 ): (patch: Patch, context?: TransactionContext) => Promise<void> {
   const { store, chunkStore, projector } = options;
   return async (patch, context) => {
-    const plan = planSearchIndexing(options.searchIndexOnImport, context);
-    const replacing = context?.importMode === "replace";
-    const prepared = preparePatch(patch, {
-      include: options.include,
-      exclude: options.exclude,
-    });
-    const novel = plan.projectDuringCommit && projector
-      ? await selectNovelQuads(prepared, {
+    // ftsValueOf and vectorDimensions are not forwarded on purpose: either
+    // would change the vectors IndexedDB stores (see buildChunkRecords).
+    const { prepared, plan, novel, rows, replacing } = await prepareCommit(
+      patch,
+      {
+        context,
+        searchIndexOnImport: options.searchIndexOnImport,
+        include: options.include,
+        exclude: options.exclude,
         keyOf: (quad) => quadKey(quad),
         lookupExisting: (keys) => findStoredQuadKeys(store, keys),
-        replacing,
-      })
-      : { novelInsertions: [], novelQuadIds: [] };
-    const records = projector
-      ? await buildChunkRecords(
-        novel.novelInsertions,
-        novel.novelQuadIds,
-        projector,
-      )
-      : [];
+        selectNovel: "when-projecting",
+        projection: projector && {
+          textSplitter: projector.textSplitter,
+          embeddingService: projector.embeddingService,
+        },
+      },
+    );
 
     const filtered: Patch = {
       ...patch,
@@ -98,7 +98,7 @@ export function createProjectingCommit(
       chunkStoreName: chunkStore.chunkStoreName,
       clear: replacing,
       deleteQuadIds: [...prepared.deletionIds, ...novel.novelQuadIds],
-      records,
+      records: toChunkRecords(rows),
     });
     if (plan.reindexAfterCommit && projector) await options.reindex?.();
   };

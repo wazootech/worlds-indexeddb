@@ -6,7 +6,10 @@
 
 import type * as rdfjs from "@rdfjs/types";
 import type { TextSplitterInterface } from "@worlds/sdk/search-index/quad-chunker";
-import { chunkAndEmbedQuads } from "@worlds/sdk/search-index/quad-chunker";
+import {
+  chunkAndEmbedQuads,
+  type EmbeddedChunk,
+} from "@worlds/sdk/search-index/quad-chunker";
 import type { EmbeddingService } from "@worlds/sdk/search-index/embedding-service";
 import type { IdbChunkStore, SearchChunkRecord } from "./idb-chunk-store.ts";
 
@@ -38,11 +41,29 @@ export function buildChunkFtsValue(value: string): string {
 }
 
 /**
+ * toChunkRecords maps the rows `prepareCommit` or `chunkAndEmbedQuads` return
+ * to IndexedDB chunk records: the keyword text is lowercased and the vector
+ * becomes a plain array. It chunks and embeds nothing.
+ */
+export function toChunkRecords(rows: EmbeddedChunk[]): SearchChunkRecord[] {
+  return rows.map(({ chunk, vector }) => ({
+    quad_id: chunk.quad_id,
+    subject: chunk.subject,
+    predicate: chunk.predicate,
+    graph: chunk.graph,
+    value: chunk.value,
+    fts_value: buildChunkFtsValue(chunk.value),
+    ...(vector ? { vector: Array.from(vector) } : {}),
+  }));
+}
+
+/**
  * buildChunkRecords chunks and embeds novel quad insertions, through the shared
- * `chunkAndEmbedQuads`, and returns the rows to write without writing them. A
- * chunking failure rejects here, so a caller that builds first writes nothing.
- * An embedding failure rejects too, as on every worlds backend, so a caller
- * that builds first writes nothing and can retry.
+ * `chunkAndEmbedQuads`, and returns the rows to write without writing them. It
+ * serves reindex and `projectChunks`; a commit gets its rows from
+ * `prepareCommit` and only maps them with `toChunkRecords`. A chunking or
+ * embedding failure rejects here, as on every worlds backend, so a caller that
+ * builds first writes nothing and can retry.
  *
  * The embedding input stays the chunk's original text. `ftsValueOf` is not
  * used on purpose: it would also embed the lowercased text, changing the stored
@@ -56,26 +77,11 @@ export async function buildChunkRecords(
   options: ProjectorOptions,
 ): Promise<SearchChunkRecord[]> {
   if (novelInsertions.length === 0) return [];
-
-  // The SDK's default is to throw on an embedding failure; no option is passed.
-  const { rows } = await chunkAndEmbedQuads(
-    novelInsertions,
-    novelQuadIds,
-    {
-      textSplitter: options.textSplitter,
-      embeddingService: options.embeddingService,
-    },
-  );
-
-  return rows.map(({ chunk, vector }) => ({
-    quad_id: chunk.quad_id,
-    subject: chunk.subject,
-    predicate: chunk.predicate,
-    graph: chunk.graph,
-    value: chunk.value,
-    fts_value: buildChunkFtsValue(chunk.value),
-    ...(vector ? { vector: Array.from(vector) } : {}),
-  }));
+  const { rows } = await chunkAndEmbedQuads(novelInsertions, novelQuadIds, {
+    textSplitter: options.textSplitter,
+    embeddingService: options.embeddingService,
+  });
+  return toChunkRecords(rows);
 }
 
 /** projectChunks builds the chunk records for novel quad insertions and stores them. */
