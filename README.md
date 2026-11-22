@@ -195,10 +195,10 @@ dirty tree.
   `"disabled"`.
 - **Deliberate differences from the SQL backends** — a reindex swaps the chunk
   store in one atomic transaction (SQL rebuilds page by page, so a failure part
-  way leaves earlier pages indexed and is repaired by running it again); it
-  loads every quad into memory through `match()` (SQL pages by keyset with
-  `streamQuads`, so IndexedDB's reindex is bounded by memory, a known
-  scalability limit); and the default page sizes differ (1000 here, 500 in SQL).
-  Not verified against SQL: how `ftsValueOf` and `vectorDimensions` are applied
-  (here the chunk text is lowercased for keyword scoring, embeddings use the
-  original text, and `vectorDimensions` is not forwarded to the projector).
+  way leaves earlier pages indexed and is repaired by running it again); it runs
+  through the shared `rebuildSearchIndex` loop, and `IndexeddbStore` pages quads
+  with a cursor (like SQL's keyset paging) while other stores still read every
+  quad once through `match()`; and the default page sizes differ (1000 here, 500
+  in SQL). Not verified against SQL: how `ftsValueOf` and `vectorDimensions` are
+  applied (here the chunk text is lowercased for keyword scoring, embeddings use
+  the original text, and `vectorDimensions` is not forwarded to the projector).

@@ -1,7 +1,7 @@
 {
   "name": "@worlds/indexeddb",
   "description": "IndexedDB durable backend for the Worlds client — RDF/JS quad primitive packaged with the worlds impl.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "license": "WTFPL",
   "nodeModulesDir": "auto",
   "compilerOptions": {
@@ -30,7 +30,7 @@
     "@tensorflow/tfjs-backend-wasm": "npm:@tensorflow/tfjs-backend-wasm@^4.22.0",
     "@wazoo/sparql-engine": "jsr:@wazoo/sparql-engine@^0.5.0",
     "@wazoo/sparql-engine/term": "jsr:@wazoo/sparql-engine@^0.5.0/term",
-    "@worlds/sdk": "jsr:@worlds/sdk@^0.10.0",
+    "@worlds/sdk": "jsr:@worlds/sdk@^0.11.0",
     "fake-indexeddb": "npm:fake-indexeddb@^6.0.0",
     "fake-indexeddb/auto": "npm:fake-indexeddb@^6.0.0/auto",
     "@langchain/textsplitters": "npm:@langchain/textsplitters@^1.0.1"
