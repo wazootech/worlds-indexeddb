@@ -40,11 +40,17 @@ export async function collectQuads(
  * Inside a commit's transaction that is a LATER write than the quad puts, so it
  * tells an atomic commit from one that stored the quads first.
  */
-function failNextChunkPut(chunkStoreName: string): void {
+function failNextChunkPut(
+  chunkStoreName: string,
+  putsBeforeFailure: string[] = [],
+): void {
   const proto = IDBObjectStore.prototype;
   const put = proto.put;
   proto.put = function (this: IDBObjectStore, ...args) {
-    if (this.name !== chunkStoreName) return put.apply(this, args);
+    if (this.name !== chunkStoreName) {
+      putsBeforeFailure.push(this.name);
+      return put.apply(this, args);
+    }
     proto.put = put;
     throw new Error("injected chunk write failure");
   };
@@ -57,6 +63,11 @@ export type IdbSubject = CommitConformanceSubject & {
   index: IndexeddbSearchIndex;
   /** failNextChunkWrite makes the next chunk put fail once, after the quad puts in the same transaction. */
   failNextChunkWrite(): void;
+  /**
+   * laterWriteFailures records, per `failLaterWrite` injection, the names of the
+   * object stores written (put) before the injected chunk put failed, in order.
+   */
+  laterWriteFailures: string[][];
 };
 
 /** IdbSubjectExtra tunes a subject beyond what the conformance suite configures. */
@@ -91,6 +102,7 @@ export async function createIdbSubject(
   });
   let rebuilds = 0;
   let failArmed = false;
+  const laterWriteFailures: string[][] = [];
   const applyPatch = store.applyPatch.bind(store);
   store.applyPatch = (patch, context, chunks) => {
     if (failArmed) {
@@ -114,6 +126,7 @@ export async function createIdbSubject(
     chunkStore,
     index,
     failNextChunkWrite: () => failNextChunkPut(chunkStore.chunkStoreName),
+    laterWriteFailures,
     commit,
     storedQuads: () => collectQuads(store),
     chunkedQuadIds: async () =>
@@ -124,6 +137,13 @@ export async function createIdbSubject(
       } else {
         failArmed = true;
       }
+    },
+    // The commit is one atomic transaction, so a chunk put (after the quad
+    // puts) is the later write; the log lets a test prove the order.
+    failLaterWrite: () => {
+      const putsBeforeFailure: string[] = [];
+      laterWriteFailures.push(putsBeforeFailure);
+      failNextChunkPut(chunkStore.chunkStoreName, putsBeforeFailure);
     },
     fullRebuildCount: () => rebuilds,
   };
