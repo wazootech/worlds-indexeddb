@@ -4,6 +4,7 @@ import type {
   CommitConformanceCreateOptions,
   CommitConformanceSubject,
 } from "@worlds/sdk/testing";
+import type { QuadFilter } from "@worlds/sdk/quad-store";
 import type { TextSplitterInterface } from "@worlds/sdk/search-index/quad-chunker";
 import { IndexeddbStore } from "@/indexeddb/rdfjs-store/indexeddb-store.ts";
 import { IdbChunkStore } from "./idb-chunk-store.ts";
@@ -71,7 +72,7 @@ export type IdbSubject = CommitConformanceSubject & {
 };
 
 /** IdbSubjectExtra tunes a subject beyond what the conformance suite configures. */
-export interface IdbSubjectExtra {
+export interface IdbSubjectExtra extends QuadFilter {
   /**
    * failInsideTransaction makes `failNextWrite` fail a chunk put inside the
    * commit's transaction (after the quad puts) instead of rejecting `applyPatch`
@@ -99,6 +100,8 @@ export async function createIdbSubject(
     ...projector,
     vectorDimensions: 32,
     quadsStore: store,
+    include: extra.include,
+    exclude: extra.exclude,
   });
   let rebuilds = 0;
   let failArmed = false;
@@ -116,6 +119,8 @@ export async function createIdbSubject(
     chunkStore,
     projector,
     searchIndexOnImport: options.searchIndexOnImport,
+    include: extra.include,
+    exclude: extra.exclude,
     reindex: () => {
       rebuilds++;
       return index.reindex();
