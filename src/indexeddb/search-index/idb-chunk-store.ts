@@ -7,6 +7,7 @@
  * coordinated through the same IndexedDB version lifecycle.
  */
 import { DB_VERSION, upgradeSchema } from "@/indexeddb/schema.ts";
+import { writeChunks } from "@/indexeddb/rdfjs-store/chunk-write.ts";
 
 /** SearchChunkRecord is one persisted search chunk in IndexedDB. */
 export interface SearchChunkRecord {
@@ -119,6 +120,28 @@ export class IdbChunkStore {
     store.clear();
     for (const chunk of chunks) store.put(chunk);
     await txDone(tx);
+  }
+
+  /**
+   * replaceForQuads is the scoped replace: in one readwrite transaction it drops
+   * every chunk row of the quads in `quadIds`, then writes `chunks`. Rows of any
+   * other quad are left alone, so nothing is cleared. Embed `chunks` before
+   * calling, since a transaction cannot wait on a non-IndexedDB promise.
+   */
+  public async replaceForQuads(
+    quadIds: string[],
+    chunks: SearchChunkRecord[],
+  ): Promise<void> {
+    if (quadIds.length === 0 && chunks.length === 0) return;
+    const db = await this.openDb();
+    const tx = db.transaction(this.chunkStoreName, "readwrite");
+    const done = txDone(tx);
+    writeChunks(tx, {
+      chunkStoreName: this.chunkStoreName,
+      deleteQuadIds: quadIds,
+      records: chunks,
+    });
+    await done;
   }
 
   /**

@@ -167,8 +167,10 @@ dirty tree.
   scan-based `RdfjsSearchIndex`. `searchIndexOnImport` (needs `textSplitter`)
   decides when chunks are written: `"incremental"` (the default, as in every
   worlds backend) in every commit (imports and SPARQL updates), `"deferred"` the
-  same except imports, which rebuild once afterwards, and `"disabled"` never on
-  commit, so only `sdk.reindex()` writes them. Chunks are embedded before the
+  same except imports, which rebuild once afterwards, and `"disabled"` writes no
+  chunks on commit, so only `sdk.reindex()` writes them (a commit still drops
+  the chunks of the quads it deletes or wipes, in every mode, as the SQL
+  backends do, so no chunk row is orphaned). Chunks are embedded before the
   write, and the quads and their chunks are written in one IndexedDB
   transaction, so a commit is atomic: an embedding failure (which always
   rejects, as on every worlds backend; there is no keyword-only fallback) or a
@@ -179,3 +181,24 @@ dirty tree.
   async cursor-backed RDF/JS stream (the engine and SDK already read async
   streams), `countQuads()`/`getQuads()` return promises, and `size` is a live
   count refreshed after each write transaction.
+- **Converged with the SQL core** (worlds-sdk-ts#265) — the behaviors below
+  match `@worlds/sqlite`'s shared commit and rebuild, and
+  `idb-sql-parity.test.ts` keeps them red-on-drift: a scoped reindex
+  (`include`/`exclude`, on the request or the options) replaces only the chunk
+  rows of the in-scope quads and clears nothing, while an unscoped one replaces
+  the whole chunk store; `processedQuadCount` counts every stored quad scanned
+  (in scope or not) and `chunkRowCount` the rows written; a commit applies the
+  same `include`/`exclude` filter as a reindex
+  (`createIndexeddbWorldsSdk({ include, exclude })`), so an out-of-scope quad is
+  neither stored nor projected; and a commit deletes the chunk rows of deleted
+  or wiped quads in the same transaction even when `searchIndexOnImport` is
+  `"disabled"`.
+- **Deliberate differences from the SQL backends** — a reindex swaps the chunk
+  store in one atomic transaction (SQL rebuilds page by page, so a failure part
+  way leaves earlier pages indexed and is repaired by running it again); it
+  loads every quad into memory through `match()` (SQL pages by keyset with
+  `streamQuads`, so IndexedDB's reindex is bounded by memory, a known
+  scalability limit); and the default page sizes differ (1000 here, 500 in SQL).
+  Not verified against SQL: how `ftsValueOf` and `vectorDimensions` are applied
+  (here the chunk text is lowercased for keyword scoring, embeddings use the
+  original text, and `vectorDimensions` is not forwarded to the projector).

@@ -5,6 +5,7 @@ import { RdfjsQuadStore } from "@worlds/sdk/rdfjs";
 import type { TextSplitterInterface } from "@worlds/sdk/search-index/quad-chunker";
 import type { EmbeddingService } from "@worlds/sdk/search-index/embedding-service";
 import type { SearchIndexOnImport } from "@worlds/sdk/search-index";
+import type { QuadCriteria } from "@worlds/sdk/quad-store";
 import { IndexeddbStore } from "@/indexeddb/rdfjs-store/mod.ts";
 import { IdbChunkStore } from "@/indexeddb/search-index/mod.ts";
 import { IndexeddbSearchIndex } from "@/indexeddb/search-index/mod.ts";
@@ -58,6 +59,16 @@ export interface IndexeddbWorldsSdkOptions {
   searchIndexOnImport?: SearchIndexOnImport;
 
   /**
+   * include limits ingested and projected facts to matching subjects,
+   * predicates and graphs, as `createSqliteWorldsSdk` does: a commit stores and
+   * indexes only matching quads, and `reindex()` scopes to them by default.
+   */
+  include?: QuadCriteria;
+
+  /** exclude rejects facts matching any declared subject, predicate or graph. */
+  exclude?: QuadCriteria;
+
+  /**
    * SPARQL engine to wire as the SDK's sparqlEngine. Defaults to a
    * WazooSparqlEngine over the IndexeddbStore with its `createTransaction`
    * hook, so SPARQL updates commit atomically (one IDB readwrite
@@ -89,17 +100,19 @@ export async function createIndexeddbWorldsSdk(
   await store.openDb();
 
   // Determine the search index: hybrid (if textSplitter provided) or scan-based.
-  let searchIndex;
-  let commit: ReturnType<typeof createProjectingCommit> | undefined;
-  if (options.textSplitter) {
-    const chunkStore = new IdbChunkStore({
-      dbName: options.dbName,
-      chunkStoreName: options.chunkStoreName,
-      storeName: options.storeName,
-    });
-    // Open the chunk store on the same database (same schema version).
-    await chunkStore.openDb();
+  // The chunk store shares the quad store's database (same schema version), and
+  // every commit goes through it, so deleting a quad drops its chunk rows in
+  // the same transaction whether or not indexing is on (as the SQL backends do).
+  const chunkStore = new IdbChunkStore({
+    dbName: options.dbName,
+    chunkStoreName: options.chunkStoreName,
+    storeName: options.storeName,
+  });
+  await chunkStore.openDb();
 
+  let searchIndex;
+  let index: IndexeddbSearchIndex | undefined;
+  if (options.textSplitter) {
     searchIndex = new IndexeddbSearchIndex({
       chunkStore,
       textSplitter: options.textSplitter,
@@ -107,34 +120,36 @@ export async function createIndexeddbWorldsSdk(
       vectorDimensions: options.vectorDimensions ?? DEFAULT_VECTOR_DIMENSIONS,
       searchIndexOnImport: options.searchIndexOnImport,
       quadsStore: store,
+      include: options.include,
+      exclude: options.exclude,
     });
-    if (options.searchIndexOnImport !== "disabled") {
-      const index = searchIndex;
-      commit = createProjectingCommit({
-        store,
-        chunkStore,
-        projector: {
-          chunkStore,
-          textSplitter: options.textSplitter,
-          embeddingService: options.embeddingService,
-        },
-        searchIndexOnImport: options.searchIndexOnImport,
-        reindex: () => index.reindex(),
-      });
-    }
+    index = searchIndex;
   } else {
     // Fallback: scan-based search (no chunking, no hybrid).
     const { RdfjsSearchIndex } = await import("@worlds/sdk/rdfjs");
     searchIndex = new RdfjsSearchIndex(store);
   }
 
+  const commit = createProjectingCommit({
+    store,
+    chunkStore,
+    projector: options.textSplitter && {
+      chunkStore,
+      textSplitter: options.textSplitter,
+      embeddingService: options.embeddingService,
+    },
+    searchIndexOnImport: options.searchIndexOnImport,
+    include: options.include,
+    exclude: options.exclude,
+    reindex: () => index!.reindex(),
+  });
+
   return new WorldsSdk({
     quadStore: new RdfjsQuadStore({ store, commit }),
     sparqlEngine: options.queryEngine ??
       new WazooSparqlEngine({
         store,
-        createTransaction: () =>
-          commit ? new PatchTransaction(commit) : store.createTransaction(),
+        createTransaction: () => new PatchTransaction(commit),
       }),
     searchIndex,
   });
