@@ -50,31 +50,29 @@ function pagerFor(
 }
 
 /**
- * bufferingDriver is the IndexedDB half of the shared rebuild loop. It reads
- * pages through `pageQuads`, buffers every embedded page in `writePage`, and
- * does the one chunk-store transaction in `finish`, so a failed embedding (or a
- * failed write) leaves the old chunks: the all-or-nothing swap.
+ * pagedDriver is the IndexedDB half of the shared rebuild loop. It reads pages
+ * through `pageQuads` and writes each embedded page at once in its own readwrite
+ * transaction, as the SQL backends do, so memory stays bounded to one page.
+ * Unscoped, the first write clears the chunk store and adds its rows in one
+ * transaction and later pages only add. Scoped, each page replaces only the rows
+ * of its own in-scope quads. A failure on page N leaves pages 1..N-1 written
+ * (and, unscoped, the old rows already cleared); running the rebuild again
+ * repairs it.
  */
-function bufferingDriver(
+function pagedDriver(
   chunkStore: IdbChunkStore,
   pageQuads: ChunkRebuildDriver["pageQuads"],
 ): ChunkRebuildDriver {
-  const rows: EmbeddedChunk[] = [];
-  const hashes: string[] = [];
-  let unscoped = false;
   return {
     pageQuads,
-    writePage(scope: RebuildScope, pageRows: EmbeddedChunk[]) {
-      rows.push(...pageRows);
-      if ("hashes" in scope) hashes.push(...scope.hashes);
-      else unscoped = true;
-      return Promise.resolve();
-    },
-    finish() {
+    writePage(scope: RebuildScope, rows: EmbeddedChunk[], first: boolean) {
       const records = toChunkRecords(rows);
-      return unscoped
+      if ("hashes" in scope) {
+        return chunkStore.replaceForQuads(scope.hashes, records);
+      }
+      return first
         ? chunkStore.replaceAll(records)
-        : chunkStore.replaceForQuads(hashes, records);
+        : chunkStore.insertChunks(records);
     },
   };
 }
@@ -83,9 +81,12 @@ function bufferingDriver(
  * reindexChunks rebuilds search chunks from the quads in `quadsStore` through
  * the SDK's shared `rebuildSearchIndex` loop, the same one the SQL backends
  * run: it pages the stored quads, chunks and embeds each page, and only then
- * writes, in one transaction, so a failed embedding leaves the old chunks.
+ * writes that page in its own transaction. A failed embedding on page 1 changes
+ * nothing; a failure on a later page leaves the earlier pages written, and a
+ * rerun repairs it.
  *
- * Unscoped, the write replaces the whole chunk store (orphan rows included). A
+ * Unscoped, the first write replaces the whole chunk store (orphan rows
+ * included) and later pages add to it. A
  * scope (include or exclude with any criteria) clears nothing: it replaces only
  * the chunk rows of the in-scope quads and leaves every other row alone.
  * `processedQuadCount` is every stored quad scanned, in scope or not.
@@ -100,7 +101,7 @@ export async function reindexChunks(
       "IndexeddbSearchIndex reindex requires quadsStore in options",
     );
   }
-  const driver = bufferingDriver(options.chunkStore, pagerFor(quadsStore));
+  const driver = pagedDriver(options.chunkStore, pagerFor(quadsStore));
   return await rebuildSearchIndex(
     driver,
     {

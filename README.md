@@ -192,13 +192,15 @@ dirty tree.
   (`createIndexeddbWorldsSdk({ include, exclude })`), so an out-of-scope quad is
   neither stored nor projected; and a commit deletes the chunk rows of deleted
   or wiped quads in the same transaction even when `searchIndexOnImport` is
-  `"disabled"`.
-- **Deliberate differences from the SQL backends** — a reindex swaps the chunk
-  store in one atomic transaction (SQL rebuilds page by page, so a failure part
-  way leaves earlier pages indexed and is repaired by running it again); it runs
-  through the shared `rebuildSearchIndex` loop, and `IndexeddbStore` pages quads
-  with a cursor (like SQL's keyset paging) while other stores still read every
-  quad once through `match()`; and the default page sizes differ (1000 here, 500
-  in SQL). Not verified against SQL: how `ftsValueOf` and `vectorDimensions` are
-  applied (here the chunk text is lowercased for keyword scoring, embeddings use
-  the original text, and `vectorDimensions` is not forwarded to the projector).
+  `"disabled"`; and a reindex writes page by page, one transaction per page, and
+  is rerunnable, as the SQL rebuild does. It is not all-or-nothing: a failure
+  part way leaves earlier pages indexed (and, unscoped, the old rows already
+  cleared) until it is run again, while an embedding failure on the first page
+  changes nothing. Memory stays bounded to one page.
+- **Deliberate differences from the SQL backends** — the reindex runs through
+  the shared `rebuildSearchIndex` loop, and `IndexeddbStore` pages quads with a
+  cursor (like SQL's keyset paging) while other stores are still read once
+  through `match()`; and the default page sizes differ (1000 here, 500 in SQL).
+  Not verified against SQL: how `ftsValueOf` and `vectorDimensions` are applied
+  (here the chunk text is lowercased for keyword scoring, embeddings use the
+  original text, and `vectorDimensions` is not forwarded to the projector).
