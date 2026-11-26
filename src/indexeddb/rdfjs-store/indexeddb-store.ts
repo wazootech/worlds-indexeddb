@@ -83,13 +83,9 @@ function txDone(tx: IDBTransaction): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onabort = () =>
-      reject(
-        tx.error ?? new Error("IndexedDB transaction aborted"),
-      );
+      reject(tx.error ?? new Error("IndexedDB transaction aborted"));
     tx.onerror = () =>
-      reject(
-        tx.error ?? new Error("IndexedDB transaction failed"),
-      );
+      reject(tx.error ?? new Error("IndexedDB transaction failed"));
   });
 }
 
@@ -139,9 +135,10 @@ export class IndexeddbStore implements rdfjs.Store<rdfjs.Quad> {
       request.onsuccess = () => {
         const db = request.result;
         // Seed the live count once the connection is established.
-        const countRequest = db.transaction(this.storeName).objectStore(
-          this.storeName,
-        ).count();
+        const countRequest = db
+          .transaction(this.storeName)
+          .objectStore(this.storeName)
+          .count();
         countRequest.onsuccess = () => {
           this.liveCount = countRequest.result;
         };
@@ -183,9 +180,10 @@ export class IndexeddbStore implements rdfjs.Store<rdfjs.Quad> {
         throw error;
       }
       await done;
-      const countRequest = db.transaction(this.storeName).objectStore(
-        this.storeName,
-      ).count();
+      const countRequest = db
+        .transaction(this.storeName)
+        .objectStore(this.storeName)
+        .count();
       await new Promise<void>((resolve, reject) => {
         countRequest.onsuccess = () => {
           this.liveCount = countRequest.result;
@@ -212,18 +210,21 @@ export class IndexeddbStore implements rdfjs.Store<rdfjs.Quad> {
     context?: { importMode?: "replace" | "merge" },
     chunks?: ChunkWrite,
   ): Promise<void> {
-    return this.enqueueWrite((tx, store) => {
-      if (context?.importMode === "replace") {
-        store.clear();
-      }
-      for (const quad of patch.deletions) {
-        store.delete(quadKey(quad));
-      }
-      for (const quad of patch.insertions) {
-        store.put(toQuadRow(quad));
-      }
-      if (chunks) writeChunks(tx, chunks);
-    }, chunks ? [chunks.chunkStoreName] : []);
+    return this.enqueueWrite(
+      (tx, store) => {
+        if (context?.importMode === "replace") {
+          store.clear();
+        }
+        for (const quad of patch.deletions) {
+          store.delete(quadKey(quad));
+        }
+        for (const quad of patch.insertions) {
+          store.put(toQuadRow(quad));
+        }
+        if (chunks) writeChunks(tx, chunks);
+      },
+      chunks ? [chunks.chunkStoreName] : [],
+    );
   }
 
   /** createTransaction returns a fresh transaction over this store. */
@@ -244,16 +245,17 @@ export class IndexeddbStore implements rdfjs.Store<rdfjs.Quad> {
     object?: rdfjs.Term,
     graph?: rdfjs.Term,
   ): this {
-    const quad = predicate !== undefined && object !== undefined
-      ? DataFactory.quad(
-        // RDF 1.2 allows any term in any position (literal subjects in
-        // quoted triples); the engine's position types are narrower, so cast.
-        quadOrSubject as rdfjs.Quad_Subject,
-        predicate as rdfjs.Quad_Predicate,
-        object as rdfjs.Quad_Object,
-        graph as rdfjs.Quad_Graph,
-      )
-      : quadOrSubject as rdfjs.Quad;
+    const quad =
+      predicate !== undefined && object !== undefined
+        ? DataFactory.quad(
+            // RDF 1.2 allows any term in any position (literal subjects in
+            // quoted triples); the engine's position types are narrower, so cast.
+            quadOrSubject as rdfjs.Quad_Subject,
+            predicate as rdfjs.Quad_Predicate,
+            object as rdfjs.Quad_Object,
+            graph as rdfjs.Quad_Graph,
+          )
+        : (quadOrSubject as rdfjs.Quad);
     // IndexedDB writes are asynchronous; the rdfjs.Store interface types
     // addQuad as synchronous, so the write is queued and the caller can
     // await it via flush() or a later read. The SDK and engine never use
@@ -320,9 +322,9 @@ export class IndexeddbStore implements rdfjs.Store<rdfjs.Quad> {
             if (--remaining === 0) {
               const chosen = bound[best]!;
               resolve(
-                store.index(chosen.index).openCursor(
-                  IDBKeyRange.only(chosen.key),
-                ),
+                store
+                  .index(chosen.index)
+                  .openCursor(IDBKeyRange.only(chosen.key)),
               );
             }
           };
@@ -345,10 +347,7 @@ export class IndexeddbStore implements rdfjs.Store<rdfjs.Quad> {
     graph?: rdfjs.Term | null,
   ): IdbQuadStream {
     const bound: Array<{ index: string; key: string; term: rdfjs.Term }> = [];
-    const bind = (
-      index: string,
-      term: rdfjs.Term | null | undefined,
-    ): void => {
+    const bind = (index: string, term: rdfjs.Term | null | undefined): void => {
       if (term != null) {
         bound.push({ index, key: termKey(term), term });
       }
@@ -361,23 +360,27 @@ export class IndexeddbStore implements rdfjs.Store<rdfjs.Quad> {
     const remaining = bound.map(({ index, term }) => ({ index, term }));
     const selection = bound.map(({ index, key }) => ({ index, key }));
 
-    return new IdbQuadStream(async () => {
-      const db = await this.openDb();
-      return this.openMatchCursor(db, selection, false);
-    }, {
-      accept: (quad) =>
-        remaining.every(({ index, term }) => {
-          const actual = index === "skey"
-            ? quad.subject
-            : index === "pkey"
-            ? quad.predicate
-            : index === "okey"
-            ? quad.object
-            : quad.graph;
-          return sameRdfTerm(actual, term);
-        }),
-      decode: (value) => fromQuadRow(value as QuadRow),
-    });
+    return new IdbQuadStream(
+      async () => {
+        const db = await this.openDb();
+        return this.openMatchCursor(db, selection, false);
+      },
+      {
+        accept: (quad) =>
+          remaining.every(({ index, term }) => {
+            const actual =
+              index === "skey"
+                ? quad.subject
+                : index === "pkey"
+                  ? quad.predicate
+                  : index === "okey"
+                    ? quad.object
+                    : quad.graph;
+            return sameRdfTerm(actual, term);
+          }),
+        decode: (value) => fromQuadRow(value as QuadRow),
+      },
+    );
   }
 
   /** getQuads collects the matching quads into an array. */
@@ -419,10 +422,7 @@ export class IndexeddbStore implements rdfjs.Store<rdfjs.Quad> {
     graph?: rdfjs.Term | null,
   ): IdbQuadStream {
     const bound: Array<{ index: string; key: string; term: rdfjs.Term }> = [];
-    const bind = (
-      index: string,
-      term: rdfjs.Term | null | undefined,
-    ): void => {
+    const bind = (index: string, term: rdfjs.Term | null | undefined): void => {
       if (term != null) {
         bound.push({ index, key: termKey(term), term });
       }
@@ -434,26 +434,30 @@ export class IndexeddbStore implements rdfjs.Store<rdfjs.Quad> {
     const remaining = bound.map(({ index, term }) => ({ index, term }));
     const selection = bound.map(({ index, key }) => ({ index, key }));
 
-    const stream = new IdbQuadStream(async () => {
-      const db = await this.openDb();
-      return this.openMatchCursor(db, selection, true);
-    }, {
-      accept: (quad) =>
-        remaining.every(({ index, term }) => {
-          const actual = index === "skey"
-            ? quad.subject
-            : index === "pkey"
-            ? quad.predicate
-            : index === "okey"
-            ? quad.object
-            : quad.graph;
-          return sameRdfTerm(actual, term);
-        }),
-      onRecord: (cursor) => {
-        cursor.delete();
+    const stream = new IdbQuadStream(
+      async () => {
+        const db = await this.openDb();
+        return this.openMatchCursor(db, selection, true);
       },
-      decode: (value) => fromQuadRow(value as QuadRow),
-    });
+      {
+        accept: (quad) =>
+          remaining.every(({ index, term }) => {
+            const actual =
+              index === "skey"
+                ? quad.subject
+                : index === "pkey"
+                  ? quad.predicate
+                  : index === "okey"
+                    ? quad.object
+                    : quad.graph;
+            return sameRdfTerm(actual, term);
+          }),
+        onRecord: (cursor) => {
+          cursor.delete();
+        },
+        decode: (value) => fromQuadRow(value as QuadRow),
+      },
+    );
     // The live count refreshes once the deletion cursor completes.
     stream.on("end", () => {
       void this.enqueueWrite(() => {});
@@ -462,12 +466,9 @@ export class IndexeddbStore implements rdfjs.Store<rdfjs.Quad> {
   }
 
   /** deleteGraph removes every quad in the named graph. */
-  public deleteGraph(
-    graph: rdfjs.Quad_Graph | string,
-  ): IdbQuadStream {
-    const graphTerm = typeof graph === "string"
-      ? DataFactory.namedNode(graph)
-      : graph;
+  public deleteGraph(graph: rdfjs.Quad_Graph | string): IdbQuadStream {
+    const graphTerm =
+      typeof graph === "string" ? DataFactory.namedNode(graph) : graph;
     return this.removeMatches(null, null, null, graphTerm);
   }
 

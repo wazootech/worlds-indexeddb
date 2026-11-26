@@ -24,14 +24,15 @@ const contract: CommitConformanceContract = {
 
 const laterWriteCase = "later-write failure follows the contract";
 
-for (
-  const [label, extra] of [
-    ["a rejected applyPatch", {}],
-    ["a chunk write failing inside the transaction", {
+for (const [label, extra] of [
+  ["a rejected applyPatch", {}],
+  [
+    "a chunk write failing inside the transaction",
+    {
       failInsideTransaction: true,
-    }],
-  ] as [string, IdbSubjectExtra][]
-) {
+    },
+  ],
+] as [string, IdbSubjectExtra][]) {
   test(`IndexedDB commit path passes the shared conformance suite (${label})`, async () => {
     const subjects: IdbSubject[] = [];
     const report = await runCommitConformanceSuite({
@@ -59,7 +60,7 @@ for (
       subject.laterWriteFailures.map((puts) => ({
         puts,
         quadStore: subject.store.storeName,
-      }))
+      })),
     );
     assert.deepStrictEqual(failures.length, 1);
     const { puts, quadStore } = failures[0]!;

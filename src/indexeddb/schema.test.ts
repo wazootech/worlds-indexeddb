@@ -30,14 +30,16 @@ test("quad store then chunk store open on one database", async () => {
   const chunks = new IdbChunkStore({ dbName });
   await within(2000, store.openDb());
   await within(2000, chunks.openDb());
-  await chunks.insertChunks([{
-    quad_id: "q",
-    subject: "s",
-    predicate: "p",
-    graph: "g",
-    value: "v",
-    fts_value: "v",
-  }]);
+  await chunks.insertChunks([
+    {
+      quad_id: "q",
+      subject: "s",
+      predicate: "p",
+      graph: "g",
+      value: "v",
+      fts_value: "v",
+    },
+  ]);
   assert.deepStrictEqual(await chunks.countChunks(), 1);
 });
 

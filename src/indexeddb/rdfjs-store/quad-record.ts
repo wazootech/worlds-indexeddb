@@ -61,9 +61,9 @@ export function fromTermRecord(rec: TermRecord): rdfjs.Term {
       if (rec.lang) {
         return rec.dir
           ? DataFactory.literal(rec.v, {
-            language: rec.lang,
-            direction: rec.dir as "ltr" | "rtl",
-          })
+              language: rec.lang,
+              direction: rec.dir as "ltr" | "rtl",
+            })
           : DataFactory.literal(rec.v, rec.lang);
       }
       return DataFactory.literal(rec.v, DataFactory.namedNode(rec.dt));

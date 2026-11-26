@@ -104,17 +104,8 @@ test("searchKeyword - returns empty for no matches", () => {
 });
 
 test("searchKeyword - respects limit", () => {
-  const chunks = Array.from(
-    { length: 20 },
-    (_, i) =>
-      makeChunk(
-        i + 1,
-        `q${i}`,
-        `urn:s${i}`,
-        "urn:p",
-        "urn:g",
-        "test query word",
-      ),
+  const chunks = Array.from({ length: 20 }, (_, i) =>
+    makeChunk(i + 1, `q${i}`, `urn:s${i}`, "urn:p", "urn:g", "test query word"),
   );
   const results = searchKeyword("test", chunks, 5);
   assert.deepStrictEqual(results.length, 5);

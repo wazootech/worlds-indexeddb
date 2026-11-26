@@ -11,20 +11,21 @@ export async function findStoredQuadKeys(
 ): Promise<Set<string>> {
   await store.flush();
   const db = await store.openDb();
-  const objectStore = db.transaction(store.storeName).objectStore(
-    store.storeName,
-  );
+  const objectStore = db
+    .transaction(store.storeName)
+    .objectStore(store.storeName);
   const found = new Set<string>();
   await Promise.all(
-    [...new Set(keys)].map((key) =>
-      new Promise<void>((resolve, reject) => {
-        const request = objectStore.getKey(key);
-        request.onsuccess = () => {
-          if (request.result !== undefined) found.add(key);
-          resolve();
-        };
-        request.onerror = () => reject(request.error);
-      })
+    [...new Set(keys)].map(
+      (key) =>
+        new Promise<void>((resolve, reject) => {
+          const request = objectStore.getKey(key);
+          request.onsuccess = () => {
+            if (request.result !== undefined) found.add(key);
+            resolve();
+          };
+          request.onerror = () => reject(request.error);
+        }),
     ),
   );
   return found;

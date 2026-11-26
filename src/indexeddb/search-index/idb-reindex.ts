@@ -22,22 +22,20 @@ const DEFAULT_READ_PAGE_SIZE = 1000;
  * RDF/JS store has no ordered range to resume from, so it is read once with
  * `match` and that array is sliced, which keeps every quad in memory.
  */
-function pagerFor(
-  store: rdfjs.Store,
-): ChunkRebuildDriver["pageQuads"] {
+function pagerFor(store: rdfjs.Store): ChunkRebuildDriver["pageQuads"] {
   if (store instanceof IndexeddbStore) {
     return ({ after, pageSize }) =>
       pageStoredQuads(store, { after: after as string | undefined, pageSize });
   }
   let scanned: Promise<rdfjs.Quad[]> | undefined;
   const scan = () =>
-    scanned ??= new Promise<rdfjs.Quad[]>((resolve, reject) => {
+    (scanned ??= new Promise<rdfjs.Quad[]>((resolve, reject) => {
       const all: rdfjs.Quad[] = [];
       const stream = store.match(null, null, null, null);
       stream.on("data", (quad: rdfjs.Quad) => all.push(quad));
       stream.on("end", () => resolve(all));
       stream.on("error", reject);
-    });
+    }));
   return async ({ after, pageSize }): Promise<RebuildPage> => {
     const all = await scan();
     const from = (after as number | undefined) ?? 0;

@@ -40,14 +40,14 @@ With an import map:
 
 ```html
 <script type="importmap">
-{
-  "imports": {
-    "@worlds/indexeddb": "https://esm.sh/jsr/@worlds/indexeddb@0.1.0"
+  {
+    "imports": {
+      "@worlds/indexeddb": "https://esm.sh/jsr/@worlds/indexeddb@0.1.0"
+    }
   }
-}
 </script>
 <script type="module">
-import { createIndexeddbWorldsSdk } from "@worlds/indexeddb";
+  import { createIndexeddbWorldsSdk } from "@worlds/indexeddb";
 </script>
 ```
 
@@ -105,8 +105,7 @@ const sdk = await createIndexeddbWorldsSdk({
 await sdk.import({
   source: {
     kind: "serialized",
-    data:
-      `<http://example.com/alice> <http://example.com/knows> <http://example.com/bob> .`,
+    data: `<http://example.com/alice> <http://example.com/knows> <http://example.com/bob> .`,
     contentType: "text/turtle",
   },
 });
@@ -114,8 +113,7 @@ await sdk.import({
 const [searchResult, sparqlResult] = await Promise.all([
   sdk.search({ query: "alice" }),
   sdk.sparql({
-    query:
-      `SELECT ?o WHERE { <http://example.com/alice> <http://example.com/knows> ?o }`,
+    query: `SELECT ?o WHERE { <http://example.com/alice> <http://example.com/knows> ?o }`,
   }),
 ]);
 ```

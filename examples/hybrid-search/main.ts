@@ -32,8 +32,7 @@ const sdk = await createIndexeddbWorldsSdk({
 await sdk.import({
   source: {
     kind: "serialized",
-    data:
-      `<http://example.com/alice> <http://example.com/knows> <http://example.com/bob> .
+    data: `<http://example.com/alice> <http://example.com/knows> <http://example.com/bob> .
 <http://example.com/bob> <http://example.com/name> "Bob" .
 <http://example.com/carol> <http://example.com/knows> <http://example.com/dave> .
 <http://example.com/dave> <http://example.com/name> "Dave" .`,
@@ -51,8 +50,7 @@ for (const r of searchResult.results ?? []) {
 
 // SPARQL query.
 const sparqlResult = await sdk.sparql({
-  query:
-    `SELECT ?o WHERE { <http://example.com/alice> <http://example.com/knows> ?o }`,
+  query: `SELECT ?o WHERE { <http://example.com/alice> <http://example.com/knows> ?o }`,
 });
 console.log("\nSPARQL results:"); // SPARQL results:
 if (sparqlResult.kind === "select") {

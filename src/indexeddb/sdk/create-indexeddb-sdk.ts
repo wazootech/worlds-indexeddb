@@ -146,7 +146,8 @@ export async function createIndexeddbWorldsSdk(
 
   return new WorldsSdk({
     quadStore: new RdfjsQuadStore({ store, commit }),
-    sparqlEngine: options.queryEngine ??
+    sparqlEngine:
+      options.queryEngine ??
       new WazooSparqlEngine({
         store,
         createTransaction: () => new PatchTransaction(commit),
