@@ -1,5 +1,6 @@
 import "fake-indexeddb/auto";
-import { assertEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import { DataFactory } from "@wazoo/sparql-engine";
 import { IndexeddbStore } from "@/indexeddb/rdfjs-store/indexeddb-store.ts";
 import { pageStoredQuads } from "@/indexeddb/rdfjs-store/page-quads.ts";
@@ -39,23 +40,25 @@ async function walk(store: IndexeddbStore, pageSize: number) {
   return { sizes, subjects };
 }
 
-Deno.test("pageStoredQuads walks every quad once, in key order, one page at a time", async () => {
+test("pageStoredQuads walks every quad once, in key order, one page at a time", async () => {
   const store = await storeWith(5);
   const all = (await store.getQuads()).map((q) => q.subject.value).sort();
   const { sizes, subjects } = await walk(store, 2);
-  assertEquals(sizes, [2, 2, 1]);
-  assertEquals([...subjects], [...subjects].sort());
-  assertEquals(subjects, all);
+  assert.deepStrictEqual(sizes, [2, 2, 1]);
+  assert.deepStrictEqual([...subjects], [...subjects].sort());
+  assert.deepStrictEqual(subjects, all);
 });
 
-Deno.test("pageStoredQuads ends on a full last page without an extra empty one", async () => {
+test("pageStoredQuads ends on a full last page without an extra empty one", async () => {
   const store = await storeWith(4);
-  assertEquals((await walk(store, 2)).sizes, [2, 2]);
-  assertEquals((await walk(store, 4)).sizes, [4]);
-  assertEquals((await walk(store, 100)).sizes, [4]);
+  assert.deepStrictEqual((await walk(store, 2)).sizes, [2, 2]);
+  assert.deepStrictEqual((await walk(store, 4)).sizes, [4]);
+  assert.deepStrictEqual((await walk(store, 100)).sizes, [4]);
 });
 
-Deno.test("pageStoredQuads on an empty store returns one empty last page", async () => {
+test("pageStoredQuads on an empty store returns one empty last page", async () => {
   const store = await storeWith(0);
-  assertEquals(await pageStoredQuads(store, { pageSize: 3 }), { quads: [] });
+  assert.deepStrictEqual(await pageStoredQuads(store, { pageSize: 3 }), {
+    quads: [],
+  });
 });

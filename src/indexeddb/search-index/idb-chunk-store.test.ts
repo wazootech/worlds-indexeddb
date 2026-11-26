@@ -1,5 +1,6 @@
 import "fake-indexeddb/auto";
-import { assertEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import { IdbChunkStore, type SearchChunkRecord } from "./idb-chunk-store.ts";
 
 function makeTestChunk(
@@ -17,7 +18,7 @@ function makeTestChunk(
   };
 }
 
-Deno.test("IdbChunkStore - insert and retrieve chunks", async () => {
+test("IdbChunkStore - insert and retrieve chunks", async () => {
   const store = new IdbChunkStore({
     dbName: `chunk-test-${crypto.randomUUID()}`,
   });
@@ -28,16 +29,16 @@ Deno.test("IdbChunkStore - insert and retrieve chunks", async () => {
     await store.insertChunks([chunk1, chunk2]);
 
     const all = await store.getAllChunks();
-    assertEquals(all.length, 2);
+    assert.deepStrictEqual(all.length, 2);
 
     const count = await store.countChunks();
-    assertEquals(count, 2);
+    assert.deepStrictEqual(count, 2);
   } finally {
     store.close();
   }
 });
 
-Deno.test("IdbChunkStore - delete by quad ids", async () => {
+test("IdbChunkStore - delete by quad ids", async () => {
   const store = new IdbChunkStore({
     dbName: `chunk-delete-test-${crypto.randomUUID()}`,
   });
@@ -49,17 +50,17 @@ Deno.test("IdbChunkStore - delete by quad ids", async () => {
     ]);
 
     const deleted = await store.deleteByQuadIds(["q1"]);
-    assertEquals(deleted, 2);
+    assert.deepStrictEqual(deleted, 2);
 
     const remaining = await store.getAllChunks();
-    assertEquals(remaining.length, 1);
-    assertEquals(remaining[0]!.quad_id, "q2");
+    assert.deepStrictEqual(remaining.length, 1);
+    assert.deepStrictEqual(remaining[0]!.quad_id, "q2");
   } finally {
     store.close();
   }
 });
 
-Deno.test("IdbChunkStore - getChunksByQuadIds", async () => {
+test("IdbChunkStore - getChunksByQuadIds", async () => {
   const store = new IdbChunkStore({
     dbName: `chunk-get-test-${crypto.randomUUID()}`,
   });
@@ -71,13 +72,13 @@ Deno.test("IdbChunkStore - getChunksByQuadIds", async () => {
     ]);
 
     const results = await store.getChunksByQuadIds(["q1", "q3"]);
-    assertEquals(results.length, 2);
+    assert.deepStrictEqual(results.length, 2);
   } finally {
     store.close();
   }
 });
 
-Deno.test("IdbChunkStore - clear removes all chunks", async () => {
+test("IdbChunkStore - clear removes all chunks", async () => {
   const store = new IdbChunkStore({
     dbName: `chunk-clear-test-${crypto.randomUUID()}`,
   });
@@ -89,20 +90,20 @@ Deno.test("IdbChunkStore - clear removes all chunks", async () => {
 
     await store.clear();
     const count = await store.countChunks();
-    assertEquals(count, 0);
+    assert.deepStrictEqual(count, 0);
   } finally {
     store.close();
   }
 });
 
-Deno.test("IdbChunkStore - insertChunks with empty array is no-op", async () => {
+test("IdbChunkStore - insertChunks with empty array is no-op", async () => {
   const store = new IdbChunkStore({
     dbName: `chunk-empty-test-${crypto.randomUUID()}`,
   });
   try {
     await store.insertChunks([]);
     const count = await store.countChunks();
-    assertEquals(count, 0);
+    assert.deepStrictEqual(count, 0);
   } finally {
     store.close();
   }

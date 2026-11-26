@@ -1,16 +1,17 @@
 import "fake-indexeddb/auto";
-import { assertEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import { IndexeddbStore } from "./rdfjs-store/mod.ts";
 import { createIndexeddbWorldsSdk } from "./sdk/mod.ts";
 
-Deno.test("surface is exported and constructible", () => {
-  assertEquals(typeof IndexeddbStore, "function");
-  assertEquals(typeof createIndexeddbWorldsSdk, "function");
+test("surface is exported and constructible", () => {
+  assert.deepStrictEqual(typeof IndexeddbStore, "function");
+  assert.deepStrictEqual(typeof createIndexeddbWorldsSdk, "function");
   const store = new IndexeddbStore({ dbName: "wazoo-playground" });
-  assertEquals(store.options.dbName, "wazoo-playground");
+  assert.deepStrictEqual(store.options.dbName, "wazoo-playground");
 });
 
-Deno.test(
+test(
   "createIndexeddbWorldsSdk imports, searches, and queries end to end",
   async () => {
     const sdk = await createIndexeddbWorldsSdk({
@@ -30,14 +31,14 @@ Deno.test(
     });
 
     const search = await sdk.search({ query: "ali", topK: 10 });
-    assertEquals(search.results?.length, 1);
-    assertEquals(search.results![0]!.text, "Alice");
+    assert.deepStrictEqual(search.results?.length, 1);
+    assert.deepStrictEqual(search.results![0]!.text, "Alice");
 
     const sparql = await sdk.sparql({
       query: "SELECT ?s WHERE { ?s <urn:knows> <urn:bob> }",
     });
-    assertEquals(sparql.kind, "select");
-    assertEquals(
+    assert.deepStrictEqual(sparql.kind, "select");
+    assert.deepStrictEqual(
       (sparql as { data: { results: { bindings: unknown[] } } }).data.results
         .bindings.length,
       1,

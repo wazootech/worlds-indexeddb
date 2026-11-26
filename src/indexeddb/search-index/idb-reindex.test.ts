@@ -1,6 +1,7 @@
 import "fake-indexeddb/auto";
 import type * as rdfjs from "@rdfjs/types";
-import { assertEquals, assertRejects } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import { DataFactory } from "@wazoo/sparql-engine";
 import { FakeEmbeddingService } from "@worlds/sdk/search-index/embedding-service";
 import { IndexeddbSearchIndex } from "./indexeddb-search-index.ts";
@@ -34,24 +35,27 @@ async function stored(s: Awaited<ReturnType<typeof createIdbSubject>>) {
 }
 
 for (const pageSize of [1, 2, 3, 6, 1000]) {
-  Deno.test(`reindex with readPageSize ${pageSize} keeps counts and rows identical`, async () => {
+  test(`reindex with readPageSize ${pageSize} keeps counts and rows identical`, async () => {
     const s = await createIdbSubject({ embeddingService });
     await s.store.applyPatch({ insertions: quads, deletions: [] });
-    assertEquals(await s.index.reindex({ readPageSize: pageSize }), {
+    assert.deepStrictEqual(await s.index.reindex({ readPageSize: pageSize }), {
       processedQuadCount: 6,
       chunkRowCount: 5,
     });
     const all = await stored(s);
-    assertEquals(all.length, 5);
-    assertEquals(await s.index.reindex({ ...scope, readPageSize: pageSize }), {
-      processedQuadCount: 6,
-      chunkRowCount: 3,
-    });
-    assertEquals(await stored(s), all);
+    assert.deepStrictEqual(all.length, 5);
+    assert.deepStrictEqual(
+      await s.index.reindex({ ...scope, readPageSize: pageSize }),
+      {
+        processedQuadCount: 6,
+        chunkRowCount: 3,
+      },
+    );
+    assert.deepStrictEqual(await stored(s), all);
   });
 }
 
-Deno.test("reindex over a store that is not an IndexeddbStore slices one read", async () => {
+test("reindex over a store that is not an IndexeddbStore slices one read", async () => {
   const s = await createIdbSubject({ embeddingService });
   await s.store.applyPatch({ insertions: quads, deletions: [] });
   const plain = {
@@ -65,11 +69,11 @@ Deno.test("reindex over a store that is not an IndexeddbStore slices one read", 
     embeddingService,
     quadsStore: plain,
   });
-  assertEquals(await index.reindex({ readPageSize: 2 }), {
+  assert.deepStrictEqual(await index.reindex({ readPageSize: 2 }), {
     processedQuadCount: 6,
     chunkRowCount: 5,
   });
-  assertEquals((await stored(s)).length, 5);
+  assert.deepStrictEqual((await stored(s)).length, 5);
 });
 
 // A rebuild writes page by page, as the SQL backends do: each page is its own
@@ -118,36 +122,40 @@ async function seededPaged() {
 const rowsOf = async (s: Awaited<ReturnType<typeof createIdbSubject>>) =>
   (await s.chunkStore.getAllChunks()).map((c) => [c.quad_id, c.value]).sort();
 
-Deno.test("unscoped: a failure on page 2 keeps page 1, clears the old rows, and a rerun repairs it", async () => {
+test("unscoped: a failure on page 2 keeps page 1, clears the old rows, and a rerun repairs it", async () => {
   const { s, state } = await seededPaged();
   await s.chunkStore.insertChunks([staleRow("orphan")]);
   state.failAt = 2;
-  await assertRejects(() => s.index.reindex({ readPageSize: 2 }), Error);
+  await assert.rejects(() => s.index.reindex({ readPageSize: 2 }), Error);
   const partial = await s.chunkStore.getAllChunks();
-  assertEquals(partial.length, 2, "only page 1 is written; the orphan is gone");
-  assertEquals(
+  assert.deepStrictEqual(
+    partial.length,
+    2,
+    "only page 1 is written; the orphan is gone",
+  );
+  assert.deepStrictEqual(
     partial.map((c) => c.value.toLowerCase()).sort(),
     state.texts[0].map((t) => t.toLowerCase()).sort(),
   );
   state.failAt = 0;
-  assertEquals(await s.index.reindex({ readPageSize: 2 }), {
+  assert.deepStrictEqual(await s.index.reindex({ readPageSize: 2 }), {
     processedQuadCount: 5,
     chunkRowCount: 5,
   });
   const clean = await seededPaged();
   await clean.s.index.reindex({ readPageSize: 2 });
-  assertEquals(await rowsOf(s), await rowsOf(clean.s));
+  assert.deepStrictEqual(await rowsOf(s), await rowsOf(clean.s));
 });
 
-Deno.test("an embedding failure on page 1 changes nothing", async () => {
+test("an embedding failure on page 1 changes nothing", async () => {
   const { s, state } = await seededPaged();
   await s.chunkStore.insertChunks([staleRow("orphan")]);
   state.failAt = 1;
-  await assertRejects(() => s.index.reindex({ readPageSize: 2 }), Error);
-  assertEquals(await rowsOf(s), [["orphan", "stale"]]);
+  await assert.rejects(() => s.index.reindex({ readPageSize: 2 }), Error);
+  assert.deepStrictEqual(await rowsOf(s), [["orphan", "stale"]]);
 });
 
-Deno.test("scoped: a failure on page 2 keeps page 1's replaced rows and leaves out-of-scope rows alone", async () => {
+test("scoped: a failure on page 2 keeps page 1's replaced rows and leaves out-of-scope rows alone", async () => {
   const { s, state } = await seededPaged();
   await s.index.reindex();
   const inScope = ["urn:a", "urn:c", "urn:e"];
@@ -165,7 +173,7 @@ Deno.test("scoped: a failure on page 2 keeps page 1's replaced rows and leaves o
   state.calls = 0;
   state.texts = [];
   state.failAt = 2;
-  await assertRejects(
+  await assert.rejects(
     () => s.index.reindex({ include: { subjects: inScope }, readPageSize: 1 }),
     Error,
   );
@@ -173,25 +181,29 @@ Deno.test("scoped: a failure on page 2 keeps page 1's replaced rows and leaves o
   const replaced = after.filter((c) =>
     staleIds.includes(c.quad_id) && c.value !== "stale"
   );
-  assertEquals(replaced.length, 1, "page 1's in-scope row was replaced");
-  assertEquals(
+  assert.deepStrictEqual(
+    replaced.length,
+    1,
+    "page 1's in-scope row was replaced",
+  );
+  assert.deepStrictEqual(
     after.filter((c) => c.value === "stale").length,
     inScope.length - 1,
     "later in-scope rows are still stale",
   );
-  assertEquals(
+  assert.deepStrictEqual(
     (await rowsOf(s)).filter(([id]) => others.some((o) => o.quad_id === id)),
     outBefore,
   );
   state.failAt = 0;
   await s.index.reindex({ include: { subjects: inScope }, readPageSize: 1 });
-  assertEquals(
+  assert.deepStrictEqual(
     (await s.chunkStore.getAllChunks()).filter((c) => c.value === "stale"),
     [],
   );
 });
 
-Deno.test("each page is its own chunk-store transaction, written after its embedding", async () => {
+test("each page is its own chunk-store transaction, written after its embedding", async () => {
   const { s, log } = await seededPaged();
   const proto = IDBDatabase.prototype;
   const original = proto.transaction;
@@ -204,22 +216,22 @@ Deno.test("each page is its own chunk-store transaction, written after its embed
   };
   try {
     await s.index.reindex({ readPageSize: 2 });
-    assertEquals(log, ["embed", "tx", "embed", "tx", "embed", "tx"]);
+    assert.deepStrictEqual(log, ["embed", "tx", "embed", "tx", "embed", "tx"]);
     log.length = 0;
     const inScope = { subjects: ["urn:a", "urn:c", "urn:e"] };
     await s.index.reindex({ include: inScope, readPageSize: 1 });
-    assertEquals(log, ["embed", "tx", "embed", "tx", "embed", "tx"]);
+    assert.deepStrictEqual(log, ["embed", "tx", "embed", "tx", "embed", "tx"]);
   } finally {
     proto.transaction = original;
   }
 });
 
-Deno.test("an unscoped reindex of an empty store still clears the chunks", async () => {
+test("an unscoped reindex of an empty store still clears the chunks", async () => {
   const s = await createIdbSubject({ embeddingService });
   await s.chunkStore.insertChunks([staleRow("orphan")]);
-  assertEquals(await s.index.reindex(), {
+  assert.deepStrictEqual(await s.index.reindex(), {
     processedQuadCount: 0,
     chunkRowCount: 0,
   });
-  assertEquals(await rowsOf(s), []);
+  assert.deepStrictEqual(await rowsOf(s), []);
 });
