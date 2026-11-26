@@ -1,5 +1,5 @@
 [install]
-# One-day supply-chain delay, as deno.json's minimumDependencyAge enforced.
+# One-day supply-chain delay, as the former deno.json minimumDependencyAge enforced.
 # The two first-party packages are excluded so a just-published release resolves.
 minimumReleaseAge = 86400
 minimumReleaseAgeExcludes = ["@jsr/wazoo__sparql-engine", "@jsr/worlds__sdk"]

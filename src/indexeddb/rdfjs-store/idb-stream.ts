@@ -3,7 +3,6 @@ import type * as rdfjs from "@rdfjs/types";
 // The implementation listener is any-parameterized so the typed overloads
 // below remain compatible with it (Node's own EventEmitter typings do the
 // same); the overloads are what consumers see.
-// deno-lint-ignore no-explicit-any
 type Listener = (...args: any[]) => void;
 
 /**

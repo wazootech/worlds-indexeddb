@@ -1,0 +1,31 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "typescript/no-explicit-any": "error",
+    "typescript/ban-ts-comment": [
+      "error",
+      {
+        "ts-expect-error": "allow-with-description",
+        "ts-ignore": true
+      }
+    ]
+  },
+  "ignorePatterns": ["node_modules"],
+  "overrides": [
+    {
+      // IdbQuadStream mirrors Node's EventEmitter: its listener type is
+      // any-parameterized so the typed overloads stay compatible with the
+      // implementation, and emit() iterates a copy of the listener list so a
+      // listener that unsubscribes itself cannot skip its neighbour.
+      "files": ["src/indexeddb/rdfjs-store/idb-stream.ts"],
+      "rules": {
+        "typescript/no-explicit-any": "off",
+        "unicorn/no-useless-spread": "off"
+      }
+    }
+  ]
+}
