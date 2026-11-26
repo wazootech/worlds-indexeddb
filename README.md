@@ -123,31 +123,29 @@ const [searchResult, sparqlResult] = await Promise.all([
 ## Development
 
 ```bash
-deno task ci              # format, lint, type check and tests on Deno
-bun install && bun test   # the same tests on Bun
+bun install --frozen-lockfile
+bun run ci   # format, lint, type check, manifest check and tests
 ```
 
 ## Releases
 
 Every push to `main` runs the [Publish workflow](.github/workflows/publish.yml),
-which publishes only when `deno.json`'s `version` is not yet on JSR:
+which publishes only when `jsr.json`'s `version` is not yet on JSR:
 
 - **Release PR** (bumps `version`): merging it publishes the new version of
   `@worlds/indexeddb`.
 - **Routine PR** (no bump): the Publish job skips green with a notice. That is
   expected, not a failure.
 
-To release, bump `version` in `deno.json` (minor for additive public API, patch
-for fixes) in the PR that should ship. If the package ever imports a pinned
-`jsr:@worlds/indexeddb@<version>` of itself, commit that entry to `deno.lock`;
-otherwise a cold CI run rewrites the lockfile and `deno publish` aborts on the
-dirty tree.
+To release, bump `version` in `jsr.json` (minor for additive public API, patch
+for fixes) in the PR that should ship. The workflow publishes with
+`bunx jsr publish`, which needs no Deno install on the runner.
 
 ## Design notes
 
 - **Zero runtime dependencies** — the IndexedDB API is a browser builtin; the
   only npm/JSR imports are type-only (`@rdfjs/types`) and dev/test-only
-  (`fake-indexeddb` powers the test substrate — Deno has no native IndexedDB).
+  (`fake-indexeddb` powers the test substrate — Deno, Bun and Node have no native IndexedDB).
 - **Storage layout (sparql-engine#163)** — one object store keyed by a composite
   quad key (the four position term keys joined by NUL), with per-position
   indexes; quads differing only by graph never collide.

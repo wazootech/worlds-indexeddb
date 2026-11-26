@@ -2,8 +2,7 @@
  * Hello World — basic quad store + SPARQL over IndexedDB.
  *
  * Run:
- *   deno task ci          # from the repo root (runs all tests including examples)
- *   deno run --allow-all examples/hello-world/main.ts
+ *   bun run example:hello-world
  */
 import "fake-indexeddb/auto";
 import { IndexeddbStore } from "../../src/indexeddb/rdfjs-store/mod.ts";

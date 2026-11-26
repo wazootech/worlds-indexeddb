@@ -2,8 +2,7 @@
  * Hybrid Search — TF-IDF keyword search + cosine vector similarity over IndexedDB.
  *
  * Run:
- *   deno task ci          # from the repo root (runs all tests including examples)
- *   deno run --allow-all examples/hybrid-search/main.ts
+ *   bun run example:hybrid-search
  */
 import "fake-indexeddb/auto";
 import { createIndexeddbWorldsSdk } from "../../src/indexeddb/sdk/mod.ts";

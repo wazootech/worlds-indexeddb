@@ -125,7 +125,7 @@ export class IndexeddbStore implements rdfjs.Store<rdfjs.Quad> {
         reject(
           new Error(
             "IndexedDB is not available in this environment. " +
-              "In Deno tests, import 'npm:fake-indexeddb/auto' first.",
+              "In tests, import 'fake-indexeddb/auto' first.",
           ),
         );
         return;

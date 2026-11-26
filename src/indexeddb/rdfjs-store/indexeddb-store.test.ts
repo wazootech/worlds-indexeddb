@@ -1,5 +1,5 @@
-// IndexeddbStore unit tests over fake-indexeddb (Deno has no native
-// IndexedDB; the browser global is provided by the /auto entry).
+// IndexeddbStore unit tests over fake-indexeddb (Deno, Bun and
+// Node have no native IndexedDB; the browser global is provided by the /auto entry).
 import "fake-indexeddb/auto";
 import type * as rdfjs from "@rdfjs/types";
 import assert from "node:assert/strict";
