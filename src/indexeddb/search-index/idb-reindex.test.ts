@@ -18,7 +18,7 @@ const quads = ["a", "b", "c", "d", "e"].map((name) =>
     namedNode("urn:p"),
     literal(`text ${name}`),
     defaultGraph(),
-  )
+  ),
 );
 quads.push(
   quad(
@@ -168,7 +168,7 @@ test("scoped: a failure on page 2 keeps page 1's replaced rows and leaves out-of
     staleIds.map((id) => staleRow(id)),
   );
   const outBefore = (await rowsOf(s)).filter(([id]) =>
-    others.some((o) => o.quad_id === id)
+    others.some((o) => o.quad_id === id),
   );
   state.calls = 0;
   state.texts = [];
@@ -178,8 +178,8 @@ test("scoped: a failure on page 2 keeps page 1's replaced rows and leaves out-of
     Error,
   );
   const after = await s.chunkStore.getAllChunks();
-  const replaced = after.filter((c) =>
-    staleIds.includes(c.quad_id) && c.value !== "stale"
+  const replaced = after.filter(
+    (c) => staleIds.includes(c.quad_id) && c.value !== "stale",
   );
   assert.deepStrictEqual(
     replaced.length,

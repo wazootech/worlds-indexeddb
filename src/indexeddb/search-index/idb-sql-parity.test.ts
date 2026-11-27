@@ -51,14 +51,16 @@ test("item 1: a scoped reindex replaces only in-scope chunks and keeps the rest"
   const s = await seeded();
   const before = sorted(await s.chunkedQuadIds());
   // A row of a quad that no longer exists: out of scope, so it must survive.
-  await s.chunkStore.insertChunks([{
-    quad_id: "orphan",
-    subject: "urn:gone",
-    predicate: "urn:p",
-    graph: "",
-    value: "orphan",
-    fts_value: "orphan",
-  }]);
+  await s.chunkStore.insertChunks([
+    {
+      quad_id: "orphan",
+      subject: "urn:gone",
+      predicate: "urn:p",
+      graph: "",
+      value: "orphan",
+      fts_value: "orphan",
+    },
+  ]);
   await s.index.reindex(scopeA);
   assert.deepStrictEqual(
     sorted(await s.chunkedQuadIds()),
@@ -81,14 +83,16 @@ test("item 1: an exclude scope rebuilds everything but the excluded quads", asyn
   const s = await seeded();
   await s.chunkStore.deleteByQuadIds([hashQuad(a1), hashQuad(a2)]);
   await s.chunkStore.deleteByQuadIds([hashQuad(b1)]);
-  await s.chunkStore.insertChunks([{
-    quad_id: hashQuad(b1),
-    subject: "urn:b",
-    predicate: "urn:p",
-    graph: "",
-    value: "kept as is",
-    fts_value: "kept as is",
-  }]);
+  await s.chunkStore.insertChunks([
+    {
+      quad_id: hashQuad(b1),
+      subject: "urn:b",
+      predicate: "urn:p",
+      graph: "",
+      value: "kept as is",
+      fts_value: "kept as is",
+    },
+  ]);
   await s.index.reindex({ exclude: { subjects: ["urn:b"] } });
   const chunks = await s.chunkStore.getAllChunks();
   assert.deepStrictEqual(
@@ -104,28 +108,32 @@ test("item 1: an exclude scope rebuilds everything but the excluded quads", asyn
 
 test("item 1: an unscoped reindex clears every chunk, orphans included", async () => {
   const s = await seeded();
-  await s.chunkStore.insertChunks([{
-    quad_id: "orphan",
-    subject: "urn:gone",
-    predicate: "urn:p",
-    graph: "",
-    value: "orphan",
-    fts_value: "orphan",
-  }]);
+  await s.chunkStore.insertChunks([
+    {
+      quad_id: "orphan",
+      subject: "urn:gone",
+      predicate: "urn:p",
+      graph: "",
+      value: "orphan",
+      fts_value: "orphan",
+    },
+  ]);
   await s.index.reindex();
   assert.deepStrictEqual(
     sorted(await s.chunkedQuadIds()),
     sorted([hashQuad(a1), hashQuad(a2), hashQuad(b1)]),
   );
   // A scope with no criteria is not a scope (sql-core): it clears all too.
-  await s.chunkStore.insertChunks([{
-    quad_id: "orphan",
-    subject: "urn:gone",
-    predicate: "urn:p",
-    graph: "",
-    value: "orphan",
-    fts_value: "orphan",
-  }]);
+  await s.chunkStore.insertChunks([
+    {
+      quad_id: "orphan",
+      subject: "urn:gone",
+      predicate: "urn:p",
+      graph: "",
+      value: "orphan",
+      fts_value: "orphan",
+    },
+  ]);
   await s.index.reindex({ include: {} });
   assert.deepStrictEqual((await s.chunkedQuadIds()).length, 3);
 });
@@ -148,9 +156,7 @@ test("item 3: a commit applies the include/exclude filter, as a reindex does", a
   // Out-of-scope quads are not stored (SQL: preparePatch with options.filter)...
   assert.deepStrictEqual(
     (await collectQuads(s.store)).map((q) => q.subject.value),
-    [
-      "urn:a",
-    ],
+    ["urn:a"],
   );
   // ...nor projected, so the commit and a reindex agree on the chunks.
   assert.deepStrictEqual(await s.chunkedQuadIds(), [hashQuad(a1)]);
@@ -159,15 +165,19 @@ test("item 3: a commit applies the include/exclude filter, as a reindex does", a
 });
 
 test("item 3: a commit applies an exclude filter to its deletions too", async () => {
-  const s = await createIdbSubject({ embeddingService }, {
-    exclude: { subjects: ["urn:a"] },
-  });
+  const s = await createIdbSubject(
+    { embeddingService },
+    {
+      exclude: { subjects: ["urn:a"] },
+    },
+  );
   await s.store.applyPatch({ insertions: [a1, b1], deletions: [] });
   await s.commit({ insertions: [], deletions: [a1, b1] });
   // a1 is excluded, so the filtered commit never sees its deletion.
-  assert.deepStrictEqual((await s.storedQuads()).map((q) => q.subject.value), [
-    "urn:a",
-  ]);
+  assert.deepStrictEqual(
+    (await s.storedQuads()).map((q) => q.subject.value),
+    ["urn:a"],
+  );
 });
 
 test("item 3: the factory takes include/exclude for imports and reindex", async () => {
@@ -179,8 +189,7 @@ test("item 3: the factory takes include/exclude for imports and reindex", async 
   await sdk.import({
     source: {
       kind: "serialized",
-      data:
-        `<urn:kept> <urn:p> "kept needle" .\n<urn:drop> <urn:p> "dropped needle" .`,
+      data: `<urn:kept> <urn:p> "kept needle" .\n<urn:drop> <urn:p> "dropped needle" .`,
       contentType: "text/turtle",
     },
   });
@@ -190,11 +199,13 @@ test("item 3: the factory takes include/exclude for imports and reindex", async 
   assert.deepStrictEqual(all.includes("urn:kept"), true);
   assert.deepStrictEqual(all.includes("urn:drop"), false);
   const found = (await sdk.search({ query: "needle" })).results ?? [];
-  assert.deepStrictEqual(found.map((r) => r.subject), ["urn:kept"]);
+  assert.deepStrictEqual(
+    found.map((r) => r.subject),
+    ["urn:kept"],
+  );
 });
 
-const turtle =
-  `<urn:a> <urn:p> "Needle in a haystack" .\n<urn:b> <urn:p> "Other text" .`;
+const turtle = `<urn:a> <urn:p> "Needle in a haystack" .\n<urn:b> <urn:p> "Other text" .`;
 const replacement = `<urn:c> <urn:p> "Replacement text" .`;
 
 for (const mode of ["disabled", "incremental"] as const) {
@@ -250,10 +261,11 @@ test("item 5: a reindex over non-textual literals and IRIs chunks only the text"
   const s = await seeded();
   await s.index.reindex();
   const chunks = await s.chunkStore.getAllChunks();
-  assert.deepStrictEqual(
-    sorted(chunks.map((c) => c.value)),
-    ["alpha one", "alpha two", "beta one"],
-  );
+  assert.deepStrictEqual(sorted(chunks.map((c) => c.value)), [
+    "alpha one",
+    "alpha two",
+    "beta one",
+  ]);
   assert.deepStrictEqual(
     sorted(chunks.map((c) => c.quad_id)),
     sorted([hashQuad(a1), hashQuad(a2), hashQuad(b1)]),

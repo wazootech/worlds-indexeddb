@@ -1,0 +1,25 @@
+{
+  "name": "@worlds/indexeddb",
+  "description": "IndexedDB durable backend for the Worlds client — RDF/JS quad primitive packaged with the worlds impl.",
+  "version": "0.3.2",
+  "license": "WTFPL",
+  "compilerOptions": {
+    "lib": ["deno.window", "dom", "dom.iterable"]
+  },
+  "exports": {
+    ".": "./src/mod.ts",
+    "./rdfjs-store": "./src/indexeddb/rdfjs-store/mod.ts",
+    "./search-index": "./src/indexeddb/search-index/mod.ts",
+    "./sdk": "./src/indexeddb/sdk/mod.ts"
+  },
+  "imports": {
+    "@/": "./src/",
+    "@rdfjs/types": "npm:@rdfjs/types@^2.0.1",
+    "@wazoo/sparql-engine": "jsr:@wazoo/sparql-engine@^0.5.0",
+    "@worlds/sdk": "jsr:@worlds/sdk@^0.11.0"
+  },
+  "publish": {
+    "include": ["src/", "README.md", "LICENSE"],
+    "exclude": ["src/**/*.test.ts", "src/**/*test-support.ts", "test/"]
+  }
+}

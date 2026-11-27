@@ -73,9 +73,7 @@ export function tokenize(text: string): string[] {
     .toLowerCase()
     .split(/\s+/)
     .map((token) => token.replace(/[^\p{L}\p{N}\p{M}]+/gu, ""))
-    .filter(
-      (token) => token.length > 0 && !IDB_SEARCH_STOPWORDS.has(token),
-    );
+    .filter((token) => token.length > 0 && !IDB_SEARCH_STOPWORDS.has(token));
 }
 
 /**
@@ -108,10 +106,7 @@ function computeIdf(
       }
     }
     // Standard IDF with smoothing: log((1 + N) / (1 + df)) + 1
-    idf.set(
-      token,
-      Math.log((1 + totalDocs) / (1 + docCount)) + 1,
-    );
+    idf.set(token, Math.log((1 + totalDocs) / (1 + docCount)) + 1);
   }
 
   return idf;

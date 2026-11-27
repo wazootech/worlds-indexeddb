@@ -29,12 +29,13 @@ export async function pageStoredQuads(
 ): Promise<QuadPage> {
   const pageSize = Math.max(1, request.pageSize);
   const db = await store.openDb();
-  const objectStore = db.transaction(store.storeName).objectStore(
-    store.storeName,
-  );
-  const range = request.after === undefined
-    ? undefined
-    : IDBKeyRange.lowerBound(request.after, true);
+  const objectStore = db
+    .transaction(store.storeName)
+    .objectStore(store.storeName);
+  const range =
+    request.after === undefined
+      ? undefined
+      : IDBKeyRange.lowerBound(request.after, true);
   return await new Promise<QuadPage>((resolve, reject) => {
     const quads: rdfjs.Quad[] = [];
     let lastKey: string | undefined;

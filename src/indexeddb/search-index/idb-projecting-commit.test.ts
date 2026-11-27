@@ -24,12 +24,13 @@ test("a chunk write that fails after the quad puts aborts the whole commit", asy
   await s.commit({ insertions: [other], deletions: [] });
   s.failNextChunkWrite();
   await assert.rejects(() =>
-    s.commit({ insertions: [hello], deletions: [other] })
+    s.commit({ insertions: [hello], deletions: [other] }),
   );
   // Neither the new quad, nor the deletion, nor the chunk changes landed.
-  assert.deepStrictEqual((await s.storedQuads()).map((q) => q.subject.value), [
-    "urn:b",
-  ]);
+  assert.deepStrictEqual(
+    (await s.storedQuads()).map((q) => q.subject.value),
+    ["urn:b"],
+  );
   assert.deepStrictEqual(await s.chunkedQuadIds(), [hashQuad(other)]);
   // The failure is not sticky: the same commit now succeeds.
   await s.commit({ insertions: [hello], deletions: [other] });
@@ -42,14 +43,18 @@ test("a failed replace import keeps the old graph and its chunks", async () => {
   s.failNextChunkWrite();
   await assert.rejects(
     () =>
-      s.commit({ insertions: [other], deletions: [] }, {
-        importMode: "replace",
-      }),
+      s.commit(
+        { insertions: [other], deletions: [] },
+        {
+          importMode: "replace",
+        },
+      ),
     /injected chunk write failure/,
   );
-  assert.deepStrictEqual((await s.storedQuads()).map((q) => q.subject.value), [
-    "urn:a",
-  ]);
+  assert.deepStrictEqual(
+    (await s.storedQuads()).map((q) => q.subject.value),
+    ["urn:a"],
+  );
   assert.deepStrictEqual(await s.chunkedQuadIds(), [hashQuad(hello)]);
 });
 
@@ -85,9 +90,12 @@ test("a replace import drops the chunks of the wiped graph", async () => {
     embeddingService,
   });
   await s.commit({ insertions: [hello], deletions: [] });
-  await s.commit({ insertions: [other], deletions: [] }, {
-    importMode: "replace",
-  });
+  await s.commit(
+    { insertions: [other], deletions: [] },
+    {
+      importMode: "replace",
+    },
+  );
   assert.deepStrictEqual(await s.chunkedQuadIds(), [hashQuad(other)]);
   assert.deepStrictEqual((await collectQuads(s.store)).length, 1);
 });
@@ -144,15 +152,11 @@ test("a reindex whose embedding fails keeps the existing chunks", async () => {
   });
   await broken.store.applyPatch({ insertions: [hello], deletions: [] });
   await broken.chunkStore.insertChunks(await s.chunkStore.getAllChunks());
-  await assert.rejects(
-    () => broken.index.reindex(),
-    /failed to vectorize/,
-  );
+  await assert.rejects(() => broken.index.reindex(), /failed to vectorize/);
   assert.deepStrictEqual(await broken.chunkedQuadIds(), [hashQuad(hello)]);
 });
 
-const turtle =
-  `<urn:a> <urn:p> "Needle in a haystack" .\n<urn:b> <urn:p> "Other text" .`;
+const turtle = `<urn:a> <urn:p> "Needle in a haystack" .\n<urn:b> <urn:p> "Other text" .`;
 
 async function sdkWith(mode?: "incremental" | "deferred" | "disabled") {
   return await createIndexeddbWorldsSdk({
@@ -200,7 +204,7 @@ test("factory: a failing embedding service rejects the import and stores nothing
   await assert.rejects(() =>
     sdk.import({
       source: { kind: "serialized", data: turtle, contentType: "text/turtle" },
-    })
+    }),
   );
   assert.deepStrictEqual(
     (await sdk.search({ query: "needle" })).results?.length,

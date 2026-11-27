@@ -83,9 +83,7 @@ export interface IndexeddbSearchIndexOptions {
  * and fuses the results with Reciprocal Rank Fusion.
  */
 export class IndexeddbSearchIndex implements SearchIndexInterface {
-  public constructor(
-    private readonly options: IndexeddbSearchIndexOptions,
-  ) {}
+  public constructor(private readonly options: IndexeddbSearchIndexOptions) {}
 
   /**
    * search executes a hybrid keyword + vector query against the IDB chunk

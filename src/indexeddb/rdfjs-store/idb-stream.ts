@@ -3,7 +3,6 @@ import type * as rdfjs from "@rdfjs/types";
 // The implementation listener is any-parameterized so the typed overloads
 // below remain compatible with it (Node's own EventEmitter typings do the
 // same); the overloads are what consumers see.
-// deno-lint-ignore no-explicit-any
 type Listener = (...args: any[]) => void;
 
 /**
@@ -243,56 +242,58 @@ export class IdbQuadStream implements rdfjs.Stream<rdfjs.Quad> {
       if (this._ended) {
         return;
       }
-      this.open().then((request) => {
-        if (this._ended) {
-          return;
-        }
-        request.onsuccess = () => {
+      this.open()
+        .then((request) => {
           if (this._ended) {
             return;
           }
-          const cursor = request.result;
-          if (cursor === null) {
-            this._cursorDone = true;
-            this._maybeEnd();
-            return;
-          }
-          const quad = this.options.decode
-            ? this.options.decode(cursor.value)
-            : cursor.value as unknown as rdfjs.Quad;
-          if (this.options.accept && !this.options.accept(quad)) {
+          request.onsuccess = () => {
+            if (this._ended) {
+              return;
+            }
+            const cursor = request.result;
+            if (cursor === null) {
+              this._cursorDone = true;
+              this._maybeEnd();
+              return;
+            }
+            const quad = this.options.decode
+              ? this.options.decode(cursor.value)
+              : (cursor.value as unknown as rdfjs.Quad);
+            if (this.options.accept && !this.options.accept(quad)) {
+              cursor.continue();
+              return;
+            }
+            this.options.onRecord?.(cursor);
+            if (this._flowing) {
+              this.emit("data", quad);
+            } else if (this._readStarted) {
+              // Pull mode: buffer for read().
+              this._buffer.push(quad);
+              this.emit("readable");
+            }
+            // Bare completion mode (end/error listeners only): quads are
+            // skipped — the cursor still runs to exhaustion so the delete
+            // hook and end signal fire.
             cursor.continue();
-            return;
-          }
-          this.options.onRecord?.(cursor);
-          if (this._flowing) {
-            this.emit("data", quad);
-          } else if (this._readStarted) {
-            // Pull mode: buffer for read().
-            this._buffer.push(quad);
-            this.emit("readable");
-          }
-          // Bare completion mode (end/error listeners only): quads are
-          // skipped — the cursor still runs to exhaustion so the delete
-          // hook and end signal fire.
-          cursor.continue();
-        };
-        request.onerror = () => {
+          };
+          request.onerror = () => {
+            if (!this._ended) {
+              this.emit(
+                "error",
+                request.error ?? new Error("IndexedDB cursor request failed"),
+              );
+            }
+          };
+        })
+        .catch((error: unknown) => {
           if (!this._ended) {
             this.emit(
               "error",
-              request.error ?? new Error("IndexedDB cursor request failed"),
+              error instanceof Error ? error : new Error(String(error)),
             );
           }
-        };
-      }).catch((error: unknown) => {
-        if (!this._ended) {
-          this.emit(
-            "error",
-            error instanceof Error ? error : new Error(String(error)),
-          );
-        }
-      });
+        });
     });
   }
 

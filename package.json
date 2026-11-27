@@ -2,10 +2,25 @@
   "name": "@worlds/indexeddb",
   "private": true,
   "type": "module",
-  "description": "Bun toolchain manifest for @worlds/indexeddb. The published package is described by deno.json (jsr.json after the Bun cutover).",
+  "description": "Bun toolchain manifest for @worlds/indexeddb. The published package is described by jsr.json; scripts/check-manifests.ts keeps the two in sync.",
   "packageManager": "bun@1.4.5",
+  "exports": {
+    ".": "./src/mod.ts",
+    "./rdfjs-store": "./src/indexeddb/rdfjs-store/mod.ts",
+    "./search-index": "./src/indexeddb/search-index/mod.ts",
+    "./sdk": "./src/indexeddb/sdk/mod.ts"
+  },
   "scripts": {
-    "test": "bun test"
+    "example:hello-world": "bun ./examples/hello-world/main.ts",
+    "example:hybrid-search": "bun ./examples/hybrid-search/main.ts",
+    "fmt": "bun fmt --no-script",
+    "fmt:check": "bun fmt --no-script --check",
+    "lint": "oxlint --deny-warnings",
+    "check": "bun check --no-script",
+    "check:manifests": "bun ./scripts/check-manifests.ts",
+    "test": "bun test",
+    "publish:dry": "jsr publish --dry-run --allow-dirty",
+    "ci": "bun run fmt:check && bun run lint && bun run check && bun run check:manifests && bun run test"
   },
   "dependencies": {
     "@rdfjs/types": "^2.0.1",
@@ -17,6 +32,8 @@
     "@tensorflow/tfjs": "^4.22.0",
     "@tensorflow/tfjs-backend-wasm": "^4.22.0",
     "@types/node": "24.19.2",
-    "fake-indexeddb": "^6.0.0"
+    "fake-indexeddb": "^6.0.0",
+    "jsr": "0.14.3",
+    "oxlint": "1.94.0"
   }
 }
