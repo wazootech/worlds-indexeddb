@@ -2,7 +2,8 @@
 // hang (store first) or throw a VersionError (chunks first) because they asked
 // for different versions; they now share one schema version.
 import "fake-indexeddb/auto";
-import { assert, assertEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import { DataFactory } from "@wazoo/sparql-engine";
 import { IndexeddbStore } from "@/indexeddb/rdfjs-store/indexeddb-store.ts";
 import { IdbChunkStore } from "@/indexeddb/search-index/idb-chunk-store.ts";
@@ -23,7 +24,7 @@ async function within<T>(ms: number, work: Promise<T>): Promise<T> {
   }
 }
 
-Deno.test("quad store then chunk store open on one database", async () => {
+test("quad store then chunk store open on one database", async () => {
   const dbName = `schema-${crypto.randomUUID()}`;
   const store = new IndexeddbStore({ dbName });
   const chunks = new IdbChunkStore({ dbName });
@@ -37,18 +38,18 @@ Deno.test("quad store then chunk store open on one database", async () => {
     value: "v",
     fts_value: "v",
   }]);
-  assertEquals(await chunks.countChunks(), 1);
+  assert.deepStrictEqual(await chunks.countChunks(), 1);
 });
 
-Deno.test("chunk store then quad store open on one database", async () => {
+test("chunk store then quad store open on one database", async () => {
   const dbName = `schema-${crypto.randomUUID()}`;
   await within(2000, new IdbChunkStore({ dbName }).openDb());
   const store = new IndexeddbStore({ dbName });
   await within(2000, store.openDb());
-  assertEquals(await store.countQuads(), 0);
+  assert.deepStrictEqual(await store.countQuads(), 0);
 });
 
-Deno.test("a version 1 database from an older release upgrades in place", async () => {
+test("a version 1 database from an older release upgrades in place", async () => {
   const dbName = `schema-${crypto.randomUUID()}`;
   const db = await new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(dbName, 1);
@@ -78,11 +79,11 @@ Deno.test("a version 1 database from an older release upgrades in place", async 
   });
   const chunks = new IdbChunkStore({ dbName });
   await within(2000, chunks.openDb());
-  assertEquals(await store.countQuads(), 1);
-  assertEquals(await chunks.countChunks(), 0);
+  assert.deepStrictEqual(await store.countQuads(), 1);
+  assert.deepStrictEqual(await chunks.countChunks(), 0);
 });
 
-Deno.test("createIndexeddbWorldsSdk opens with a textSplitter", async () => {
+test("createIndexeddbWorldsSdk opens with a textSplitter", async () => {
   const sdk = await within(
     2000,
     createIndexeddbWorldsSdk({

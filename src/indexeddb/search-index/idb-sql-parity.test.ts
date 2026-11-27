@@ -1,5 +1,6 @@
 import "fake-indexeddb/auto";
-import { assertEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import { DataFactory } from "@wazoo/sparql-engine";
 import { FakeEmbeddingService } from "@worlds/sdk/search-index/embedding-service";
 import { hashQuad } from "@worlds/sdk/quad-store";
@@ -40,13 +41,13 @@ async function seeded() {
     insertions: [a1, a2, b1, bNumber, bIri],
     deletions: [],
   });
-  assertEquals((await s.chunkedQuadIds()).length, 3);
+  assert.deepStrictEqual((await s.chunkedQuadIds()).length, 3);
   return s;
 }
 
 const sorted = (ids: string[]) => [...ids].sort();
 
-Deno.test("item 1: a scoped reindex replaces only in-scope chunks and keeps the rest", async () => {
+test("item 1: a scoped reindex replaces only in-scope chunks and keeps the rest", async () => {
   const s = await seeded();
   const before = sorted(await s.chunkedQuadIds());
   // A row of a quad that no longer exists: out of scope, so it must survive.
@@ -59,24 +60,24 @@ Deno.test("item 1: a scoped reindex replaces only in-scope chunks and keeps the 
     fts_value: "orphan",
   }]);
   await s.index.reindex(scopeA);
-  assertEquals(
+  assert.deepStrictEqual(
     sorted(await s.chunkedQuadIds()),
     sorted([...before, "orphan"]),
     "a scoped reindex neither drops nor duplicates out-of-scope rows",
   );
 });
 
-Deno.test("item 1: a scoped reindex repairs a missing in-scope chunk", async () => {
+test("item 1: a scoped reindex repairs a missing in-scope chunk", async () => {
   const s = await seeded();
   await s.chunkStore.deleteByQuadIds([hashQuad(a1)]);
   await s.index.reindex(scopeA);
-  assertEquals(
+  assert.deepStrictEqual(
     sorted(await s.chunkedQuadIds()),
     sorted([hashQuad(a1), hashQuad(a2), hashQuad(b1)]),
   );
 });
 
-Deno.test("item 1: an exclude scope rebuilds everything but the excluded quads", async () => {
+test("item 1: an exclude scope rebuilds everything but the excluded quads", async () => {
   const s = await seeded();
   await s.chunkStore.deleteByQuadIds([hashQuad(a1), hashQuad(a2)]);
   await s.chunkStore.deleteByQuadIds([hashQuad(b1)]);
@@ -90,18 +91,18 @@ Deno.test("item 1: an exclude scope rebuilds everything but the excluded quads",
   }]);
   await s.index.reindex({ exclude: { subjects: ["urn:b"] } });
   const chunks = await s.chunkStore.getAllChunks();
-  assertEquals(
+  assert.deepStrictEqual(
     sorted(chunks.map((c) => c.quad_id)),
     sorted([hashQuad(a1), hashQuad(a2), hashQuad(b1)]),
   );
-  assertEquals(
+  assert.deepStrictEqual(
     chunks.find((c) => c.quad_id === hashQuad(b1))?.value,
     "kept as is",
     "the excluded quad's row is untouched",
   );
 });
 
-Deno.test("item 1: an unscoped reindex clears every chunk, orphans included", async () => {
+test("item 1: an unscoped reindex clears every chunk, orphans included", async () => {
   const s = await seeded();
   await s.chunkStore.insertChunks([{
     quad_id: "orphan",
@@ -112,7 +113,7 @@ Deno.test("item 1: an unscoped reindex clears every chunk, orphans included", as
     fts_value: "orphan",
   }]);
   await s.index.reindex();
-  assertEquals(
+  assert.deepStrictEqual(
     sorted(await s.chunkedQuadIds()),
     sorted([hashQuad(a1), hashQuad(a2), hashQuad(b1)]),
   );
@@ -126,45 +127,50 @@ Deno.test("item 1: an unscoped reindex clears every chunk, orphans included", as
     fts_value: "orphan",
   }]);
   await s.index.reindex({ include: {} });
-  assertEquals((await s.chunkedQuadIds()).length, 3);
+  assert.deepStrictEqual((await s.chunkedQuadIds()).length, 3);
 });
 
-Deno.test("item 2: processedQuadCount counts every stored quad scanned, in scope or not", async () => {
+test("item 2: processedQuadCount counts every stored quad scanned, in scope or not", async () => {
   const s = await seeded();
-  assertEquals(await s.index.reindex(scopeA), {
+  assert.deepStrictEqual(await s.index.reindex(scopeA), {
     processedQuadCount: 5,
     chunkRowCount: 2,
   });
-  assertEquals(await s.index.reindex(), {
+  assert.deepStrictEqual(await s.index.reindex(), {
     processedQuadCount: 5,
     chunkRowCount: 3,
   });
 });
 
-Deno.test("item 3: a commit applies the include/exclude filter, as a reindex does", async () => {
+test("item 3: a commit applies the include/exclude filter, as a reindex does", async () => {
   const s = await createIdbSubject({ embeddingService }, scopeA);
   await s.commit({ insertions: [a1, b1], deletions: [] });
   // Out-of-scope quads are not stored (SQL: preparePatch with options.filter)...
-  assertEquals((await collectQuads(s.store)).map((q) => q.subject.value), [
-    "urn:a",
-  ]);
+  assert.deepStrictEqual(
+    (await collectQuads(s.store)).map((q) => q.subject.value),
+    [
+      "urn:a",
+    ],
+  );
   // ...nor projected, so the commit and a reindex agree on the chunks.
-  assertEquals(await s.chunkedQuadIds(), [hashQuad(a1)]);
+  assert.deepStrictEqual(await s.chunkedQuadIds(), [hashQuad(a1)]);
   await s.index.reindex();
-  assertEquals(await s.chunkedQuadIds(), [hashQuad(a1)]);
+  assert.deepStrictEqual(await s.chunkedQuadIds(), [hashQuad(a1)]);
 });
 
-Deno.test("item 3: a commit applies an exclude filter to its deletions too", async () => {
+test("item 3: a commit applies an exclude filter to its deletions too", async () => {
   const s = await createIdbSubject({ embeddingService }, {
     exclude: { subjects: ["urn:a"] },
   });
   await s.store.applyPatch({ insertions: [a1, b1], deletions: [] });
   await s.commit({ insertions: [], deletions: [a1, b1] });
   // a1 is excluded, so the filtered commit never sees its deletion.
-  assertEquals((await s.storedQuads()).map((q) => q.subject.value), ["urn:a"]);
+  assert.deepStrictEqual((await s.storedQuads()).map((q) => q.subject.value), [
+    "urn:a",
+  ]);
 });
 
-Deno.test("item 3: the factory takes include/exclude for imports and reindex", async () => {
+test("item 3: the factory takes include/exclude for imports and reindex", async () => {
   const sdk = await createIndexeddbWorldsSdk({
     dbName: `factory-${crypto.randomUUID()}`,
     textSplitter: wholeLiteral,
@@ -181,10 +187,10 @@ Deno.test("item 3: the factory takes include/exclude for imports and reindex", a
   const all = JSON.stringify(
     await sdk.sparql({ query: "SELECT * WHERE { ?s ?p ?o }" }),
   );
-  assertEquals(all.includes("urn:kept"), true);
-  assertEquals(all.includes("urn:drop"), false);
+  assert.deepStrictEqual(all.includes("urn:kept"), true);
+  assert.deepStrictEqual(all.includes("urn:drop"), false);
   const found = (await sdk.search({ query: "needle" })).results ?? [];
-  assertEquals(found.map((r) => r.subject), ["urn:kept"]);
+  assert.deepStrictEqual(found.map((r) => r.subject), ["urn:kept"]);
 });
 
 const turtle =
@@ -192,7 +198,7 @@ const turtle =
 const replacement = `<urn:c> <urn:p> "Replacement text" .`;
 
 for (const mode of ["disabled", "incremental"] as const) {
-  Deno.test(`item 4: ${mode}: deleting a quad drops its chunk rows`, async () => {
+  test(`item 4: ${mode}: deleting a quad drops its chunk rows`, async () => {
     const sdk = await createIndexeddbWorldsSdk({
       dbName: `factory-${crypto.randomUUID()}`,
       textSplitter: wholeLiteral,
@@ -202,14 +208,20 @@ for (const mode of ["disabled", "incremental"] as const) {
       source: { kind: "serialized", data: turtle, contentType: "text/turtle" },
     });
     await sdk.reindex();
-    assertEquals((await sdk.search({ query: "needle" })).results?.length, 1);
+    assert.deepStrictEqual(
+      (await sdk.search({ query: "needle" })).results?.length,
+      1,
+    );
     await sdk.sparql({
       query: `DELETE DATA { <urn:a> <urn:p> "Needle in a haystack" }`,
     });
-    assertEquals((await sdk.search({ query: "needle" })).results?.length, 0);
+    assert.deepStrictEqual(
+      (await sdk.search({ query: "needle" })).results?.length,
+      0,
+    );
   });
 
-  Deno.test(`item 4: ${mode}: a replace import drops the old chunk rows`, async () => {
+  test(`item 4: ${mode}: a replace import drops the old chunk rows`, async () => {
     const sdk = await createIndexeddbWorldsSdk({
       dbName: `factory-${crypto.randomUUID()}`,
       textSplitter: wholeLiteral,
@@ -227,19 +239,22 @@ for (const mode of ["disabled", "incremental"] as const) {
       },
       mode: "replace",
     });
-    assertEquals((await sdk.search({ query: "needle" })).results?.length, 0);
+    assert.deepStrictEqual(
+      (await sdk.search({ query: "needle" })).results?.length,
+      0,
+    );
   });
 }
 
-Deno.test("item 5: a reindex over non-textual literals and IRIs chunks only the text", async () => {
+test("item 5: a reindex over non-textual literals and IRIs chunks only the text", async () => {
   const s = await seeded();
   await s.index.reindex();
   const chunks = await s.chunkStore.getAllChunks();
-  assertEquals(
+  assert.deepStrictEqual(
     sorted(chunks.map((c) => c.value)),
     ["alpha one", "alpha two", "beta one"],
   );
-  assertEquals(
+  assert.deepStrictEqual(
     sorted(chunks.map((c) => c.quad_id)),
     sorted([hashQuad(a1), hashQuad(a2), hashQuad(b1)]),
     "each chunk carries the hash of its own quad, not a neighbor's",

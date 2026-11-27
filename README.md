@@ -123,7 +123,8 @@ const [searchResult, sparqlResult] = await Promise.all([
 ## Development
 
 ```bash
-deno task ci
+deno task ci              # format, lint, type check and tests on Deno
+bun install && bun test   # the same tests on Bun
 ```
 
 ## Releases

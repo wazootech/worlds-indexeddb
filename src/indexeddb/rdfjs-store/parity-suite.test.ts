@@ -12,7 +12,8 @@
  * parity contract.
  */
 import "fake-indexeddb/auto";
-import { assertEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import { parityCorpus, runParitySuite } from "@worlds/sdk/testing";
 import { createMemoryWorldsSdk } from "@worlds/sdk/memory";
 import type { WorldsSdkInterface } from "@worlds/sdk";
@@ -25,7 +26,7 @@ function createFreshIndexeddbWorldsSdk(): Promise<WorldsSdkInterface> {
   });
 }
 
-Deno.test(
+test(
   "parity suite - @worlds/indexeddb agrees with the in-memory reference on the full corpus",
   async () => {
     const report = await runParitySuite({
@@ -34,12 +35,12 @@ Deno.test(
       strictSearchOrder: false,
     });
 
-    assertEquals(
+    assert.deepStrictEqual(
       report.results.length,
       parityCorpus.fixtures.length + parityCorpus.replaceCases.length,
       "every corpus fixture and replace case runs on both stores",
     );
-    assertEquals(
+    assert.deepStrictEqual(
       report.ok,
       true,
       report.results
@@ -57,12 +58,12 @@ Deno.test(
       (r) => r.name !== "rdfStarWorld",
     );
     for (const result of referenceGated) {
-      assertEquals(
+      assert.deepStrictEqual(
         result.ok,
         true,
         `${result.name}: ${result.failures.join("; ")}`,
       );
-      assertEquals(
+      assert.deepStrictEqual(
         result.notes,
         undefined,
         `${result.name} must have no notes`,

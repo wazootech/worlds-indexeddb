@@ -1,4 +1,5 @@
-import { assert, assertEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import {
   type CommitConformanceContract,
   runCommitConformanceSuite,
@@ -31,7 +32,7 @@ for (
     }],
   ] as [string, IdbSubjectExtra][]
 ) {
-  Deno.test(`IndexedDB commit path passes the shared conformance suite (${label})`, async () => {
+  test(`IndexedDB commit path passes the shared conformance suite (${label})`, async () => {
     const subjects: IdbSubject[] = [];
     const report = await runCommitConformanceSuite({
       create: async (options) => {
@@ -53,15 +54,15 @@ for (
       report.results.some((r) => r.name === laterWriteCase && r.ok),
       `the "${laterWriteCase}" case did not run: ${report.notes?.join("; ")}`,
     );
-    assertEquals(report.notes, undefined);
+    assert.deepStrictEqual(report.notes, undefined);
     const failures = subjects.flatMap((subject) =>
       subject.laterWriteFailures.map((puts) => ({
         puts,
         quadStore: subject.store.storeName,
       }))
     );
-    assertEquals(failures.length, 1);
+    assert.deepStrictEqual(failures.length, 1);
     const { puts, quadStore } = failures[0]!;
-    assertEquals(puts, [quadStore, quadStore]);
+    assert.deepStrictEqual(puts, [quadStore, quadStore]);
   });
 }
