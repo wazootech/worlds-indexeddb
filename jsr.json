@@ -1,7 +1,7 @@
 {
   "name": "@worlds/indexeddb",
   "description": "IndexedDB durable backend for the Worlds client — RDF/JS quad primitive packaged with the worlds impl.",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "license": "WTFPL",
   "compilerOptions": {
     "lib": ["deno.window", "dom", "dom.iterable"]
